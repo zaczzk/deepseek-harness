@@ -56,6 +56,14 @@ const result = await enhance.preview({ draft, depth: 'bundle', direction: 'enhan
 
 Success returns the route prediction (`enhance`, `skip`, `split`, `fold`) with its matched rule, the resolved depth and language, the structured sections, and the rendered text. A blank draft or undeclared depth rejects with `EnhanceError` from `@deepseek-ai/dsh-enhance`.
 
+The streaming face delivers that rendered text as progressive chunks for ghost display:
+
+```ts
+for await (const chunk of enhance.previewText({ draft }, signal)) paint(chunk.text)
+```
+
+Each chunk is one rendered line's text delta; concatenating the chunks reproduces `preview().text` byte for byte and the stream settles with no terminal item. Cancelling `signal` ends iteration quietly with the remaining lines undelivered. Structured sections ride `preview`; the stream carries the text projection only, and like `preview` it runs no model call and appends no session events.
+
 -----
 
 <a id="understand-the-implementation"></a>
@@ -68,12 +76,12 @@ The service is load and dispatch only: `@deepseek-ai/dsh-enhance` owns every tra
 
 Load reads `enhanceFile` synchronously, parses it as YAML, and validates it with `validateEnhanceConfig`; a missing file, invalid YAML, or violated rule throws `EnhanceError` naming the path and every violation, so a broken rubric fails the composition at load. Dispatch resolves the request through `resolveEnhance`, renders through `renderEnhance`, and projects through `renderBundleText`, all pure functions.
 
-The `preview` method carries the `@Remote` marker, and the Typert build step generates the `./typert` and `./remote` faces: Host compositions discover the binding automatically, and client assemblies `$mount` the generated Remote contribution. Wire types live on `./types` so generated codecs reference them without rooting through the entry.
+The `preview` and `previewText` methods carry the `@Remote` marker (`previewText` as a logical stream), and the Typert build step generates the `./typert` and `./remote` faces: Host compositions discover the binding automatically, and client assemblies `$mount` the generated Remote contribution. Wire types live on `./types` so generated codecs reference them without rooting through the entry.
 
 | File | Role |
 |---|---|
-| [`src/index.ts`](src/index.ts) | Service entry: rubric load, the `preview` Remote method |
-| [`src/types.ts`](src/types.ts) | Preview request and result wire vocabulary |
+| [`src/index.ts`](src/index.ts) | Service entry: rubric load, the `preview` and `previewText` Remote methods |
+| [`src/types.ts`](src/types.ts) | Preview request, result, and stream-chunk wire vocabulary |
 
 No runtime invariant companion is published: this service owns no diverging observation pair — the pure pipeline's tests cover the transformation, and the composition suites cover load and dispatch.
 

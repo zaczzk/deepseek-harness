@@ -23,6 +23,10 @@
   color: var(--dsw-text-success);
 }
 
+.ghost {
+  opacity: 0.6;
+}
+
 .removed {
   color: var(--dsw-text-danger);
   text-decoration: line-through;

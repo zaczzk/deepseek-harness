@@ -1,7 +1,8 @@
 /**
  * Host-side preview service behind the Enhance addon's Typert Remote face.
  * One `preview()` call resolves and renders one deterministic bundle through
- * `@deepseek-ai/dsh-enhance` against the rubric validated at plugin load. A
+ * `@deepseek-ai/dsh-enhance` against the rubric validated at plugin load;
+ * `previewText()` streams the same render as progressive text chunks. A
  * preview runs no model call and appends no session events: the accepted text
  * becomes model-visible only when the human sends it as an ordinary message.
  *
@@ -24,7 +25,7 @@ import type {
   EnhanceRequest,
 } from '@deepseek-ai/dsh-enhance'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
-import type { EnhancePreviewRequest, EnhancePreviewResult } from './types.ts'
+import type { EnhancePreviewChunk, EnhancePreviewRequest, EnhancePreviewResult } from './types.ts'
 
 export type * from './types.ts'
 
@@ -65,6 +66,20 @@ function loadEnhanceConfig(enhanceFile: string): EnhanceConfig {
     /* v8 ignore next -- node:fs, yaml, and EnhanceError all throw Error instances */
     const reason = error instanceof Error ? error.message : String(error)
     throw new EnhanceError(`enhance-runtime: failed to load ${enhanceFile}: ${reason}`)
+  }
+}
+
+/**
+ * Deliver one rendered projection as progressive line deltas.
+ *
+ * @param text - complete rendered projection.
+ * @param signal - cancellation owned by the Remote stream carrier.
+ * @returns one chunk per rendered line, ending quietly on cancellation.
+ */
+async function* streamText(text: string, signal: AbortSignal): AsyncIterable<EnhancePreviewChunk> {
+  for (const line of text.split(/(?<=\n)/u)) {
+    if (signal.aborted) return
+    yield { text: line }
   }
 }
 
@@ -113,5 +128,21 @@ export default class EnhanceRuntime extends TypertRemoteService {
       sections: bundle.sections,
       text: renderBundleText(bundle),
     })
+  }
+
+  /**
+   * Stream the plain-text projection of one draft's deterministic rewrite as
+   * progressive line chunks. Structured sections ride `preview`; this method
+   * carries the text projection only and settles with no terminal item. Like
+   * `preview`, it runs no model call and appends no session events.
+   *
+   * @param request - draft text with optional depth and direction.
+   * @param signal - cancellation owned by the Remote stream carrier.
+   * @returns one chunk per rendered line, ending quietly on cancellation.
+   * @throws {@link EnhanceError} when the draft is blank or the depth is undeclared.
+   */
+  @Remote({ mode: 'stream' })
+  previewText(request: EnhancePreviewRequest, signal: AbortSignal): AsyncIterable<EnhancePreviewChunk> {
+    return streamText(this.preview(request).text, signal)
   }
 }

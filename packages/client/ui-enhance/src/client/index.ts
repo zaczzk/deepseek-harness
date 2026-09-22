@@ -19,6 +19,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import { EnhanceController } from './enhance-controller.ts'
+import type { EnhanceStream } from './enhance-controller.ts'
 import type { EnhanceButtonInjected } from './EnhanceButtonView.tsx'
 import { EnhanceButtonView } from './EnhanceButtonView.tsx'
 import type { EnhancePreviewInjected } from './EnhancePreviewView.tsx'
@@ -33,7 +34,7 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 export { EnhanceController } from './enhance-controller.ts'
-export type { EnhanceDeps, EnhanceState } from './enhance-controller.ts'
+export type { EnhanceDeps, EnhanceDraft, EnhanceState, EnhanceStream } from './enhance-controller.ts'
 export type { EnhanceButtonInjected, EnhanceButtonViewProps } from './EnhanceButtonView.tsx'
 export type { EnhancePreviewInjected, EnhancePreviewViewProps } from './EnhancePreviewView.tsx'
 export type { EnhanceKey } from './locales.ts'
@@ -55,7 +56,7 @@ export function apply(ctx: ClientContext): void {
     const sessions = scope.get('sessions') as ISessions
     const conversation = scope.get('conversation') as { readonly input: SessionInputResolver }
     const enhance = scope.get('remote.enhance') as {
-      preview: (request: { readonly draft: string }) => Promise<import('@deepseek-ai/dsh-enhance-runtime').EnhancePreviewResult>
+      previewText: (request: { readonly draft: string }) => EnhanceStream
     }
     const controllers = new Map<string, EnhanceController>()
     const controllerFor = (sessionId: SessionId): EnhanceController => {
@@ -64,8 +65,12 @@ export function apply(ctx: ClientContext): void {
       const actx = sessions.scope(sessionId)
       if (actx === undefined) throw new Error(`ui-enhance: session "${String(sessionId)}" resolved no scope`)
       const controller = new EnhanceController({
-        preview: draft => enhance.preview({ draft }),
-        readDraft: () => conversation.input.for(actx).state.getSnapshot().draft,
+        stream: draft => enhance.previewText({ draft }),
+        readDraft: () => {
+          const input = conversation.input.for(actx).state.getSnapshot()
+          return { text: input.draft, rev: input.draftRev }
+        },
+        watchDraft: onChange => conversation.input.for(actx).state.subscribe(onChange),
         setDraft: (text) => { conversation.input.for(actx).setDraft(text) },
         focus: () => { conversation.input.for(actx).focus() },
       })

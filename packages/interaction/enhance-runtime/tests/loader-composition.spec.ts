@@ -7,7 +7,7 @@ import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import SessionStore, { SessionId } from '@deepseek-ai/dsh-session'
-import * as enhanceRuntime from '@deepseek-ai/dsh-enhance-runtime'
+import * as enhanceRuntime from '../src/index.ts'
 
 let root: string | undefined
 let context: Context | undefined
@@ -85,6 +85,15 @@ describe('enhance preview real Loader composition through cordis.yml', () => {
       'Verification:',
       '- Confirm every acceptance criterion is satisfied before reporting completion.',
     ].join('\n'))
+
+    const streamed: string[] = []
+    for await (const chunk of context.enhance.previewText(
+      { draft: 'Add a settings page with save and cancel buttons.' },
+      new AbortController().signal,
+    )) {
+      streamed.push(chunk.text)
+    }
+    expect(streamed.join('')).toBe(preview.text)
 
     // The preview is transient: nothing reached the model and the log is untouched.
     expect(session.deriveMessages()).toEqual([])

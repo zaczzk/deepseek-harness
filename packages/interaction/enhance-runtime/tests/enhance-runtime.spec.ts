@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { EnhanceError } from '@deepseek-ai/dsh-enhance'
-import EnhanceRuntime from '@deepseek-ai/dsh-enhance-runtime'
+import EnhanceRuntime, { type EnhancePreviewChunk } from '../src/index.ts'
 
 let root: string | undefined
 let context: Context | undefined
@@ -107,5 +107,53 @@ describe('enhance.preview', () => {
     const { enhance } = await harness()
     expect(() => enhance.preview({ draft: '   ' })).toThrow(EnhanceError)
     expect(() => enhance.preview({ draft: 'build the thing', depth: 'outline' })).toThrow(/unknown depth "outline"/u)
+  })
+})
+
+describe('enhance.previewText', () => {
+  it('streams the rendered text as progressive line chunks that settle complete', async () => {
+    const { enhance } = await harness()
+    const request = { draft: 'Add a settings page with save and cancel buttons.' }
+    const chunks: EnhancePreviewChunk[] = []
+    for await (const chunk of enhance.previewText(request, new AbortController().signal)) {
+      chunks.push(chunk)
+    }
+    const rendered = enhance.preview(request).text
+    expect(chunks.length).toBe(rendered.split('\n').length)
+    expect(chunks.map(chunk => chunk.text).join('')).toBe(rendered)
+    expect(chunks.every(chunk => Object.keys(chunk).join() === 'text')).toBe(true)
+  })
+
+  it('ends quietly on cancellation with the remaining lines undelivered', async () => {
+    const { enhance } = await harness()
+    const controller = new AbortController()
+    const seen: string[] = []
+    for await (const chunk of enhance.previewText(
+      { draft: 'Add a settings page with save and cancel buttons.' },
+      controller.signal,
+    )) {
+      seen.push(chunk.text)
+      controller.abort()
+    }
+    expect(seen).toHaveLength(1)
+  })
+
+  it('delivers nothing when cancelled before the first pull', async () => {
+    const { enhance } = await harness()
+    const controller = new AbortController()
+    controller.abort()
+    const seen: string[] = []
+    for await (const chunk of enhance.previewText(
+      { draft: 'Add a settings page with save and cancel buttons.' },
+      controller.signal,
+    )) {
+      seen.push(chunk.text)
+    }
+    expect(seen).toEqual([])
+  })
+
+  it('fails with EnhanceError like preview on a blank draft', async () => {
+    const { enhance } = await harness()
+    expect(() => enhance.previewText({ draft: '   ' }, new AbortController().signal)).toThrow(EnhanceError)
   })
 })
