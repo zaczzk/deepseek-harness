@@ -265,6 +265,12 @@ describe('Messages request conversion', () => {
     expect(request.output_config).toEqual(effort === 'off' ? undefined : { effort })
   })
 
+  it('disables thinking for enhance refinement calls and refuses an unknown purpose', () => {
+    expect(body([user()], { purpose: 'enhance', temperature: 0 })).toMatchObject({ thinking: { type: 'disabled' }, temperature: 0 })
+    expect(body([user()], { purpose: 'compaction' })).toMatchObject({ thinking: { type: 'enabled' } })
+    expect(() => body([user()], { purpose: 'unknown-purpose' as never })).toThrow(/unreachable variant in serialize purpose/)
+  })
+
   it('disables thinking for titles, passes temperature with thinking and refuses unsupported effort', () => {
     expect(body([user()], { purpose: 'session-title', temperature: 0 })).toMatchObject({ thinking: { type: 'disabled' }, temperature: 0 })
     expect(body([user()], { temperature: 0 })).toMatchObject({ thinking: { type: 'enabled' }, temperature: 0 })

@@ -15,7 +15,7 @@ import type { Scoped } from '@deepseek-ai/dsh-scope'
 import type { Message } from '@deepseek-ai/dsh-llm'
 import { SESSION_FORMAT_VERSION, SessionLogOffset, SessionSeq } from './types.ts'
 import type { TypertLookup } from '@deepseek-ai/dsh-typert-protocol'
-import type { CreateSessionOptions, EpochHeader, PrepareSessionOptions, RequestContext, SessionEvent, SessionEventMap, SessionEventType, SessionHeader, SessionId, SessionSeedEventState, SurfaceIntent, SurfaceEventType } from './types.ts'
+import type { CreateSessionOptions, EpochHeader, IgnorableEventType, IgnorableIntent, PrepareSessionOptions, RequestContext, SessionEvent, SessionEventMap, SessionEventType, SessionHeader, SessionId, SessionSeedEventState, SurfaceIntent, SurfaceEventType } from './types.ts'
 import { SurfaceManager, validateSessionEventData, validateSurfaceMetadata } from './surface.ts'
 import type { SessionSurface, SessionMessageProjection } from './surface.ts'
 import { foldRequestHeader } from './request-header.ts'
@@ -199,6 +199,9 @@ export function snapshotSessionEvent<T extends SessionEvent>(event: T): T {
   return adoptSessionEvent(structuredClone(event))
 }
 
+/** Runtime counterpart of the {@link IgnorableEventType} envelope-marked event union. */
+const IGNORABLE_EVENT_TYPES = new Set<string>(['enhance/attempt'])
+
 /** Validate the fixed event envelope after one-pass JSON materialization. */
 function assertSessionEventEnvelope(value: unknown, index: number): asserts value is SessionEvent {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) {
@@ -228,6 +231,9 @@ function assertSessionEventEnvelope(value: unknown, index: number): asserts valu
     || event['data'] === undefined
     || (event['ignorable'] !== undefined && event['ignorable'] !== true)) {
     throw new Error(`seed event at index ${index} has an invalid event envelope`)
+  }
+  if (IGNORABLE_EVENT_TYPES.has(type) && event['ignorable'] !== true) {
+    throw new Error(`seed event at index ${index} of type "${type}" must carry ignorable: true`)
   }
   validateSessionEventData(event as SessionEvent, `seed ${type} at index ${index}`)
   switch (type) {
@@ -698,7 +704,10 @@ export class Session {
    *   history) and
    *   rejected by the compiler for non-surface types like `turn/start` or
    *   `assistant/attempt`. Assistant messages embed their exact provider
-   *   stream and cannot cite top-level source events.
+   *   stream and cannot cite top-level source events. Events declared in
+   *   {@link IgnorableEventType} instead require {@link IgnorableIntent}: the
+   *   `ignorable: true` marker rides into the envelope so a reader that
+   *   predates the type skips the record instead of refusing the log.
    * @returns the logged event — its assigned `seq`/`time` plus the SNAPSHOT of
    *   `data` that entered the log, so reading `event.data` back sees the logged
    *   value, never the caller's still-mutable input.
@@ -720,12 +729,15 @@ export class Session {
   append<T extends SessionEventType>(
     type: T,
     data: SessionEventMap[T],
-    ...opts: T extends SurfaceEventType ? [opts: SurfaceIntent<T>] : []
+    ...opts: T extends SurfaceEventType
+      ? [opts: SurfaceIntent<T>]
+      : T extends IgnorableEventType ? [opts: IgnorableIntent] : []
   ): SessionEvent<T> {
-    const surfaceOpts: SurfaceIntent | undefined = opts[0]
+    const eventOpts: SurfaceIntent | IgnorableIntent | undefined = opts[0]
     const surfaceMetadata = {
-      ...surfaceOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: surfaceOpts.sourceEventSeqs },
-      ...surfaceOpts?.surfaceOp === undefined ? {} : { surfaceOp: surfaceOpts.surfaceOp },
+      ...eventOpts?.sourceEventSeqs === undefined ? {} : { sourceEventSeqs: eventOpts.sourceEventSeqs },
+      ...eventOpts?.surfaceOp === undefined ? {} : { surfaceOp: eventOpts.surfaceOp },
+      ...eventOpts !== undefined && 'ignorable' in eventOpts ? { ignorable: eventOpts.ignorable } : {},
     }
     const dataSnapshot = snapshotJsonValue(data)
     if (dataSnapshot === undefined) {
@@ -744,7 +756,7 @@ export class Session {
       seq: SessionSeq(this.log.length),
       time: Date.now(),
       data: dataSnapshot,
-      ...(surfaceMetadataSnapshot as { surfaceOp?: unknown; sourceEventSeqs?: unknown }),
+      ...(surfaceMetadataSnapshot as { surfaceOp?: unknown; sourceEventSeqs?: unknown; ignorable?: unknown }),
     } as unknown as SessionEvent<T>)
     validateSessionEventData(event, `session event "${type}" at seq ${event.seq}`)
     this.surfaceManager.validateNext(event as SessionEvent)

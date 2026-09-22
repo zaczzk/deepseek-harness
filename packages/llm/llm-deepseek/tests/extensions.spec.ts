@@ -69,6 +69,20 @@ describe('Messages request extensions', () => {
     expect(JSON.parse(body)).toMatchObject({ dsh_messages_test: { value: 'inventory' } })
   })
 
+  it('carries the enhance purpose to extension providers as model-hidden request metadata', async () => {
+    const ctx = await boot()
+    let request: DeepSeekLlmApiExtensionRequest | undefined
+    ctx.deepseekLlmApiExtensions.register('dsh_messages_test', {
+      prepare: (value) => {
+        request = value
+        return { value: { value: 'inventory' } }
+      },
+    })
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>().mockResolvedValue(new Response(sse(textEvents))))
+    await assemble(ctx.llm.stream(options({ purpose: 'enhance' })))
+    expect(request).toMatchObject({ purpose: 'enhance', body: { thinking: { type: 'disabled' } } })
+  })
+
   it('rejects preparation before dispatch', async () => {
     const ctx = await boot()
     ctx.deepseekLlmApiExtensions.register('dsh_messages_test', { prepare() { throw new Error('inventory unavailable') } })
