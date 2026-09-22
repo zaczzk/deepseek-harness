@@ -48,6 +48,9 @@
       "path": "../../interaction/commands"
     },
     {
+      "path": "../../interaction/enhance-runtime"
+    },
+    {
       "path": "../../interaction/permission-presets"
     },
     {
