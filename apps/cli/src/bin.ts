@@ -54,6 +54,25 @@ export async function runCli(): Promise<void> {
       process.exit(await runPlugin(invocation.profile, invocation.args))
       break
     }
+    case 'run': {
+      const { runDshRun } = await import('./run/index.ts')
+      const controller = new AbortController()
+      const onSignal = (): void => { controller.abort() }
+      process.on('SIGINT', onSignal)
+      process.on('SIGTERM', onSignal)
+      try {
+        process.exitCode = await runDshRun({
+          request: invocation.request,
+          usageError: invocation.usageError,
+          io: { stdout: process.stdout, stderr: process.stderr },
+          signal: controller.signal,
+        })
+      } finally {
+        process.off('SIGINT', onSignal)
+        process.off('SIGTERM', onSignal)
+      }
+      break
+    }
     case 'dump-config': {
       const { runDumpConfig } = await import('./dump-config.ts')
       runDumpConfig(

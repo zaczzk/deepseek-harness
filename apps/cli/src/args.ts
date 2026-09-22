@@ -15,7 +15,9 @@
  * @module @deepseek-ai/dsh/args
  */
 
-import { Command, CommanderError, InvalidArgumentError } from 'commander'
+import { Command, CommanderError, InvalidArgumentError, Option } from 'commander'
+import type { RunRequest } from './run/types.ts'
+import { parseDurationMs } from './run/spec.ts'
 
 /** Boot a named profile and hand it the invocation's inner arguments. */
 interface ProfileInvocation {
@@ -57,8 +59,17 @@ interface PluginInvocation {
   args: string[]
 }
 
+/** Run one task end to end and write exactly one JSON result object. */
+interface RunInvocation {
+  mode: 'run'
+  /** The parsed request; a grammar rejection leaves it minimally filled. */
+  request: RunRequest
+  /** A grammar rejection message, resolved into a usage-failure result. */
+  usageError?: string | undefined
+}
+
 /** The resolved `dsh` invocation. Help, version, and errors exit inside {@link parseDshArgs}. */
-export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation
+export type DshInvocation = ProfileInvocation | DumpConfigInvocation | DumpConfigSchemaInvocation | PluginInvocation | RunInvocation
 
 /** Launcher flags for profile boot and configuration dumps. */
 interface BootOptions {
@@ -74,6 +85,28 @@ interface BootOptions {
  * variadic — a variadic `--patch` would swallow the inner arguments.
  */
 const collect = (value: string, previous: string[] = []): string[] => [...previous, value]
+
+/** A minimally filled request for a grammar rejection that never reached the action. */
+function emptyRunRequest(): RunRequest {
+  return {
+    cwd: process.cwd(),
+    task: undefined,
+    taskFile: undefined,
+    taskFromStdin: false,
+    sessionId: undefined,
+    timeoutMs: undefined,
+    output: 'json',
+    worktree: undefined,
+    cleanup: undefined,
+    push: false,
+    targetBranch: undefined,
+    testCmd: undefined,
+    priceInUsdPerMtok: undefined,
+    priceOutUsdPerMtok: undefined,
+    patches: [],
+    abortSessionId: undefined,
+  }
+}
 
 function selectProfile(value: string, previous?: string): string {
   if (previous !== undefined) throw new InvalidArgumentError('select a profile only once')
@@ -197,12 +230,114 @@ export function parseDshArgs(argv: readonly string[], version: string): DshInvoc
       })
   }
 
+  if (first === 'run') {
+    const run = program.command('run').description('run one task end to end: agent, test gate, delivery, and one JSON result object on stdout')
+    run
+      .helpOption('-h, --help', 'show this help')
+      .option('--cwd <dir>', 'target workspace to work in (default: the current directory)')
+      .option('--task <text>', 'task text (otherwise --task-file, otherwise stdin)')
+      .option('--task-file <path>', 'read the task text from a UTF-8 file')
+      .option('--session-id <id>', 'continue the session with this id; an interrupted run keeps its worktree for resume')
+      .option('--timeout <duration>', 'wall-clock bound for the run, such as 90s, 15m, or 2h')
+      .addOption(new Option('--output <mode>', 'result output: one JSON object (json) or a JSONL event stream (jsonl)').default('json').choices(['json', 'jsonl']))
+      .addOption(new Option('--worktree', 'lease an isolated git worktree (the default when the target is a git repository)'))
+      .addOption(new Option('--no-worktree', 'work in the target directory without a worktree'))
+      .option('--no-cleanup', 'keep the run worktree and branch instead of removing them at the end')
+      .option('--push', 'push to origin/<target-branch> after the test gate passes')
+      .option('--target-branch <name>', 'branch to merge into and push (default: the checked-out branch)')
+      .option('--test-cmd <command>', 'the project\'s test command for the gate (default: package.json\'s test script)')
+      .option('--price-in-usd-per-mtok <price>', 'declared input price in USD per million tokens, for cost_usd')
+      .option('--price-out-usd-per-mtok <price>', 'declared output price in USD per million tokens, for cost_usd')
+      .option('--patch <path>', 'extra patch overlay for the agent profile (repeatable)', collect)
+      .option('--abort <session-id>', 'release the worktree lease of an interrupted run and exit')
+      .addHelpText('after', `
+Examples:
+  dsh run --cwd ../repo --task-file work.json --output json
+  dsh run --task "fix the failing parser test" --push --timeout 20m
+  dsh run --session-id session-… --task "continue"    resume an interrupted run
+  dsh run --abort session-…                           release an interrupted run's worktree
+`)
+      .action((options: {
+        cwd?: string
+        task?: string
+        taskFile?: string
+        sessionId?: string
+        timeout?: string
+        output?: string
+        worktree?: boolean
+        cleanup?: boolean
+        push?: boolean
+        targetBranch?: string
+        testCmd?: string
+        priceInUsdPerMtok?: string
+        priceOutUsdPerMtok?: string
+        patch?: string[]
+        abort?: string
+      }) => {
+        const fail = (message: string): void => {
+          resolved = { mode: 'run', request: emptyRunRequest(), usageError: message }
+        }
+        if (options.task !== undefined && options.taskFile !== undefined) {
+          fail('error: --task and --task-file are mutually exclusive')
+          return
+        }
+        if (options.timeout !== undefined && parseDurationMs(options.timeout) === undefined) {
+          fail('error: --timeout needs a positive duration such as 90s, 15m, or 2h')
+          return
+        }
+        const prices: (number | undefined)[] = []
+        for (const [flag, value] of [['--price-in-usd-per-mtok', options.priceInUsdPerMtok], ['--price-out-usd-per-mtok', options.priceOutUsdPerMtok]] as const) {
+          if (value === undefined) {
+            prices.push(undefined)
+            continue
+          }
+          const price = Number(value)
+          if (!Number.isFinite(price) || price < 0) {
+            fail(`error: ${flag} needs a non-negative number`)
+            return
+          }
+          prices.push(price)
+        }
+        resolved = {
+          mode: 'run',
+          request: {
+            cwd: options.cwd ?? process.cwd(),
+            task: options.task,
+            taskFile: options.taskFile,
+            taskFromStdin: options.task === undefined && options.taskFile === undefined,
+            sessionId: options.sessionId,
+            timeoutMs: options.timeout === undefined ? undefined : parseDurationMs(options.timeout),
+            output: options.output === 'jsonl' ? 'jsonl' : 'json',
+            worktree: options.worktree,
+            cleanup: options.cleanup,
+            push: options.push === true,
+            targetBranch: options.targetBranch,
+            testCmd: options.testCmd,
+            priceInUsdPerMtok: prices[0],
+            priceOutUsdPerMtok: prices[1],
+            patches: options.patch ?? [],
+            abortSessionId: options.abort,
+          },
+        }
+      })
+  }
+
   try {
-    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin'
+    const expanded = first !== undefined && !first.startsWith('-') && first !== 'plugin' && first !== 'run'
       ? ['--profile', ...argv]
       : argv
     program.parse(expanded, { from: 'user' })
   } catch (error) {
+    // Help and version exit 0 through the same override; only a real grammar
+    // rejection becomes a usage-failure result for `run`.
+    if (first === 'run' && resolved === undefined && error instanceof CommanderError && error.exitCode !== 0) {
+      resolved = {
+        mode: 'run',
+        request: emptyRunRequest(),
+        usageError: error.message,
+      }
+      return resolved
+    }
     return process.exit(error instanceof CommanderError ? error.exitCode : 1)
   }
   /* v8 ignore next -- an action resolves or Commander throws */

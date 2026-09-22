@@ -56,7 +56,7 @@ describe('parseDshArgs', () => {
       .toEqual({ mode: 'profile', profile: 'web', fromDefaultProfile: 'web', patches: [], args: [] })
   })
 
-  it.each(['web', 'headless', 'sdk', 'sdk-minimal', 'acp', 'tui', 'custom', 'run', 'help'])('expands %s without looking up profiles', (profile) => {
+  it.each(['web', 'headless', 'sdk', 'sdk-minimal', 'acp', 'tui', 'custom', 'help'])('expands %s without looking up profiles', (profile) => {
     for (const args of [
       [], ['task', 'words'], ['--help'], ['-h'], ['web'],
       ['--patch', 'a.yml', '--patch', 'b.yml'],
@@ -120,6 +120,63 @@ describe('parseDshArgs', () => {
     // Unknown pnpm flags forward verbatim.
     expect(parse(['plugin', '--profile', 'tui', 'add', '--save-dev', 'x']))
       .toEqual({ mode: 'plugin', profile: 'tui', args: ['add', '--save-dev', 'x'] })
+  })
+
+  it('routes the run subcommand instead of expanding it as a profile', () => {
+    expect(parse(['run', '--task', 'fix tests', '--cwd', '/repo', '--push'])).toEqual({
+      mode: 'run',
+      request: {
+        cwd: '/repo',
+        task: 'fix tests',
+        taskFile: undefined,
+        taskFromStdin: false,
+        sessionId: undefined,
+        timeoutMs: undefined,
+        output: 'json',
+        worktree: undefined,
+        cleanup: true,
+        push: true,
+        targetBranch: undefined,
+        testCmd: undefined,
+        priceInUsdPerMtok: undefined,
+        priceOutUsdPerMtok: undefined,
+        patches: [],
+        abortSessionId: undefined,
+      },
+    })
+    expect(parse(['run', '--task-file', 'work.json', '--session-id', 'session-x', '--timeout', '15m',
+      '--output', 'jsonl', '--no-worktree', '--no-cleanup', '--test-cmd', 'pytest', '--patch', 'a.yml',
+      '--price-in-usd-per-mtok', '0.35', '--price-out-usd-per-mtok', '2', '--target-branch', 'dev']))
+      .toMatchObject({
+        mode: 'run',
+        request: {
+          taskFile: 'work.json',
+          sessionId: 'session-x',
+          timeoutMs: 900_000,
+          output: 'jsonl',
+          worktree: false,
+          cleanup: false,
+          testCmd: 'pytest',
+          patches: ['a.yml'],
+          priceInUsdPerMtok: 0.35,
+          priceOutUsdPerMtok: 2,
+          targetBranch: 'dev',
+        },
+      })
+    expect(parse(['run', '--abort', 'session-x'])).toMatchObject({ mode: 'run', request: { abortSessionId: 'session-x' } })
+  })
+
+  it('resolves run grammar rejections into a usage failure instead of exiting', () => {
+    for (const argv of [
+      ['run', '--task', 'a', '--task-file', 'b'],
+      ['run', '--timeout', 'soon', '--task', 'a'],
+      ['run', '--price-in-usd-per-mtok', 'free', '--task', 'a'],
+      ['run', '--unknown-flag'],
+    ]) {
+      expect(parse(argv)).toMatchObject({ mode: 'run' })
+      expect((parse(argv) as { usageError?: string }).usageError).toContain('error: ')
+    }
+    expect(exitCode(['run', '--help'])).toBe(0)
   })
 
   it('routes profile and web config dumps', () => {

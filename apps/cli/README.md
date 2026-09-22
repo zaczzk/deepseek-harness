@@ -12,6 +12,7 @@ The `dsh` command is the sole supported Node application launcher: profiles are 
 | `dsh --profile <name> --from-default-profile <template>` | Create a new custom profile from a shipped template, then boot it. |
 | `dsh --profile acp` | Serve automation clients over ACP stdio until disconnect. |
 | `dsh --profile headless "job"` | Run one fresh persisted session, print the final answer, and exit. |
+| `dsh run --cwd <dir> --task-file <path>` | Run one task end to end for an orchestrator: leased worktree, test gate, delivery, and one JSON result object ([guide](../../docs/user/guide/dsh-run.md)). |
 | `dsh --profile sdk` | Serve SDK clients over JSON-RPC stdio until shutdown or disconnect. |
 | `dsh --profile sdk-minimal` | Serve SDK clients with the standalone minimal agent tree. |
 | `dsh web` | Boot the Web profile. |
