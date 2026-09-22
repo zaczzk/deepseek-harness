@@ -29,8 +29,8 @@ afterEach(async () => {
 })
 
 /** Observe plugin-mount failure without formatting a Cordis proxy in a diff. */
-async function mountOutcome(ctx: Context, enhanceFile: string): Promise<string> {
-  return ctx.plugin(commandEnhance, { enhanceFile, onMissing: 'fail' })
+async function mountOutcome(ctx: Context, enhanceFile: string, onMissing: 'fail' | 'disable' = 'fail'): Promise<string> {
+  return ctx.plugin(commandEnhance, { enhanceFile, onMissing })
     .then(() => 'mounted', (error: unknown) => (error instanceof Error ? error.message : String(error)))
 }
 
@@ -126,6 +126,37 @@ describe('/enhance rubric loading', () => {
     const ctx = await loadContext()
     const outcome = await mountOutcome(ctx, enhanceFile)
     expect(outcome).toMatch(/principles: must be a non-empty array/u)
+  })
+
+  it('reports the missing rubric under onMissing: disable without failing load', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-command-enhance-'))
+    const ctx = await loadContext()
+    const absent = join(root, 'absent.yml')
+    const outcome = await mountOutcome(ctx, absent, 'disable')
+    expect(outcome).toBe('mounted')
+    const session = ctx.sessions.create(SessionId(`enhance-missing-${Math.random()}`))
+    let status: AgentStatus = 'idle'
+    const agent: Agent = {
+      id: session.id,
+      options: {},
+      session,
+      inbox: createInboxStub(),
+      ctx: new Context(),
+      get status() { return status },
+      send: () => {},
+      followup: () => {},
+      steer: () => {},
+      inject() {},
+      cancel() { status = 'idle' },
+      runMaintenance: task => task(new AbortController().signal),
+      whenIdle: () => Promise.resolve(),
+    }
+    await ctx.agents.register(agent)
+    const execution = await ctx.commands.execute(agent, '/enhance build the settings page now', [], new AbortController().signal)
+    expect(execution?.result).toEqual({
+      kind: 'error',
+      text: `enhance: no rubric at ${absent}; create it and reload`,
+    })
   })
 })
 
