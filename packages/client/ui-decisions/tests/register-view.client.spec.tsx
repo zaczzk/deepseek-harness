@@ -153,6 +153,19 @@ describe('DecisionsView', () => {
     expect(b.loadRegister).toHaveBeenCalledWith('v2')
   })
 
+  it('retries a failed read with no observed version', () => {
+    const b = bench({
+      meta: { status: 'failed', value: undefined },
+      seed: (instance: StoreInstance) => {
+        instance.actions.failed('gateway/internal')
+      },
+    })
+
+    fireEvent.click(b.getByText(en.retry))
+
+    expect(b.loadRegister).toHaveBeenCalledWith('')
+  })
+
   it('reports a ready register with no rows', () => {
     const b = bench({
       seed: (instance: StoreInstance) => {

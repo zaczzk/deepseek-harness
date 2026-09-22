@@ -1,8 +1,11 @@
 /**
  * Mermaid rendering for the architecture diagram. The browser UMD bundle is
- * imported lazily into one self-contained client chunk; the package's tsdown
- * config repairs its script-scope global binding while bundling.
+ * inlined as a side-effect import into the single self-contained client
+ * bundle; the package's tsdown config repairs its script-scope global binding
+ * while bundling.
  */
+// Side-effect import: the UMD installs `globalThis.mermaid`.
+import 'mermaid/dist/mermaid.min.js'
 
 /** The Mermaid operations this package uses. */
 interface MermaidApi {
@@ -22,18 +25,17 @@ interface MermaidGlobal {
   mermaid?: MermaidApi
 }
 
-let api: Promise<MermaidApi> | undefined
+let api: MermaidApi | undefined
 let renderId = 0
 
-function mermaidApi(): Promise<MermaidApi> {
-  api ??= import('mermaid/dist/mermaid.min.js').then(() => {
-    const instance = (globalThis as MermaidGlobal).mermaid
-    if (instance === undefined) {
-      throw new Error('ui-architecture: the mermaid bundle did not install globalThis.mermaid')
-    }
-    instance.initialize({ startOnLoad: false, securityLevel: 'strict' })
-    return instance
-  })
+function mermaidApi(): MermaidApi {
+  if (api !== undefined) return api
+  const instance = (globalThis as MermaidGlobal).mermaid
+  if (instance === undefined) {
+    throw new Error('ui-architecture: the mermaid bundle did not install globalThis.mermaid')
+  }
+  instance.initialize({ startOnLoad: false, securityLevel: 'strict' })
+  api = instance
   return api
 }
 
@@ -42,11 +44,10 @@ function mermaidApi(): Promise<MermaidApi> {
  * instance.
  * @param source - the diagram source.
  * @returns the SVG markup.
- * @throws when the Mermaid bundle fails to load or the source does not parse.
+ * @throws when the Mermaid bundle did not load or the source does not parse.
  */
-export function renderMermaidSvg(source: string): Promise<string> {
+export async function renderMermaidSvg(source: string): Promise<string> {
   renderId += 1
-  return mermaidApi()
-    .then(mermaid => mermaid.render(`dsh-architecture-${renderId}`, source))
-    .then(result => result.svg)
+  const result = await mermaidApi().render(`dsh-architecture-${renderId}`, source)
+  return result.svg
 }

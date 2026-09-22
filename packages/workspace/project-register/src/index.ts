@@ -84,7 +84,7 @@ export function apply(ctx: Context, config: Config): void {
   const appendMilestone = async (cwd: string, title: string): Promise<void> => {
     try {
       const architecture = await readProjectFile(ctx.fs, ARCHITECTURE_FILE, cwd, undefined)
-      const register = (await readProjectFile(ctx.fs, REGISTER_FILE, cwd, '')) ?? ''
+      const register = (await readProjectFile(ctx.fs, REGISTER_FILE, cwd, undefined)) ?? ''
       const previous = latestMilestone(parseRegister(register))?.diagram ?? null
       const plan: MilestonePlan = { title, ...milestoneDiagram(architecture, previous) }
       const row = milestoneRow(register, plan.title, plan.flag, plan.fingerprint, milestoneDate(new Date()))

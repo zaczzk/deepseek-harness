@@ -50,6 +50,7 @@ describe('register grammar', () => {
       '| D2 | 2026-09-21 | verdict | bad kind | accepted | — |',
       '| D3 | 2026-09-21 | decision | bad status | shipped | — |',
       '| D4 | 2026-09-21 | decision | bad diagram | accepted | stale@zz |',
+      '| D8 | 2026-09-21 | decision | unknown mark | accepted | bogus |',
       '| D5 | 2026-09-21 | decision |  | accepted | — |',
       '| D6 | 21-09-2026 | decision | bad date | accepted | — |',
       '| D7 | 2026-09-21 | decision | ok | accepted | — | extra |',
@@ -58,11 +59,12 @@ describe('register grammar', () => {
   })
 
   it('appends to an existing table and mints the next identity from raw lines', () => {
-    const text = appendRegisterRow(`${formatRegisterRow(DECISION)}\nbad | M9 | row\n`, ROW)
+    const text = appendRegisterRow(`${formatRegisterRow(DECISION)}\n| a | b | c | d | e | f |\nbad | M9 | row\n`, ROW)
     const lines = text.split('\n')
     expect(lines[0]).toBe(formatRegisterRow(DECISION))
     expect(lines[1]).toBe(formatRegisterRow(ROW))
-    expect(lines[2]).toBe('bad | M9 | row')
+    expect(lines[2]).toBe('| a | b | c | d | e | f |')
+    expect(lines[3]).toBe('bad | M9 | row')
     expect(nextRegisterId(text, 'milestone')).toBe('M2')
     expect(nextRegisterId(text, 'decision')).toBe('D2')
     expect(nextRegisterId(text, 'decision')).toBe('D2')
@@ -70,6 +72,12 @@ describe('register grammar', () => {
 
   it('reuses an id already on a malformed row', () => {
     expect(nextRegisterId('| M3 | x | y | z | w | v |', 'milestone')).toBe('M4')
+  })
+
+  it('keeps the largest ordinal over smaller later rows and skips unsafe ones', () => {
+    const text = ['| M5 | x | y | z | w | v |', '| M2 | x | y | z | w | v |'].join('\n')
+    expect(nextRegisterId(text, 'milestone')).toBe('M6')
+    expect(nextRegisterId(`| M${'9'.repeat(400)} | x | y | z | w | v |`, 'milestone')).toBe('M1')
   })
 
   it('appends after an empty table separator or header', () => {

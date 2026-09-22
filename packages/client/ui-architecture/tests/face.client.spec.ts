@@ -106,6 +106,7 @@ describe('architectureFace', () => {
     face.renderDiagram('one')
     b.actions.rendering('two')
     await flush()
+    b.actions.renderFailed('one')
 
     expect(b.state().render).toMatchObject({ status: 'rendering', source: 'two' })
   })

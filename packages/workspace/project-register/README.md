@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This plugin enforces "the architecture diagram is updated at every major milestone" by writing every milestone down. Each newly completed milestone todo — an item whose content starts with the configured marker — and each completed goal appends one `milestone` row to the project's `DECISIONS.md` with today's date and `done` status. The row's Diagram cell records the `ARCHITECTURE.md` Mermaid diagram at that moment: `updated` when its fingerprint differs from the one the previous milestone recorded, `stale` when it is unchanged since then, `absent` when no diagram exists. Recording is advisory: it warns and drops the milestone on any failure, and never blocks the work it observes.
+This plugin enforces "the architecture diagram is updated at every major milestone" by recording every milestone. A newly completed milestone todo — an item whose content starts with the configured marker — or a completed goal appends one `milestone` row to `DECISIONS.md`, dated today with `done` status. The row's Diagram cell records the `ARCHITECTURE.md` Mermaid diagram: `updated` when its fingerprint differs from the previous milestone's, `stale` when unchanged since, `absent` when no diagram exists. Recording is advisory: failures warn and drop the milestone; work is never blocked.
 
 ## Table of Contents
 

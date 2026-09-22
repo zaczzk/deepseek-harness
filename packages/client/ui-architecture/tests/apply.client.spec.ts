@@ -1,5 +1,9 @@
 /** Plugin wiring: the Architecture conversation view registration. */
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+// The Mermaid UMD is browser-only and installs a global; the wiring test
+// exercises registration, not rendering.
+vi.mock('mermaid/dist/mermaid.min.js', () => ({}))
 import { Context } from '@deepseek-ai/cordis'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
@@ -17,11 +21,12 @@ async function bench() {
   )
   const locale = new LocaleRuntime(ctx)
   ctx.provide('locale', locale)
-  ctx.provide('remote', { workspaceFiles: { readBytes: async () => ({ ok: false, error: { code: 'x' } }) } })
+  const readBytes = vi.fn(async () => ({ ok: false, error: { code: 'x' } }))
+  ctx.provide('remote', { workspaceFiles: { readBytes } })
   ctx.provide('remote.workspaceFiles', {})
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, slots, locale, fiber }
+  return { ctx, slots, locale, fiber, readBytes }
 }
 
 describe('ui-architecture apply', () => {
@@ -45,6 +50,14 @@ describe('ui-architecture apply', () => {
     })
     const injectFace = entry.inject as (sessionId: string, actions: unknown) => Record<string, unknown>
     expect(Object.keys(injectFace('session-x', {}))).toEqual(['loadArchitecture', 'loadRegister', 'renderDiagram'])
+    const face = injectFace('session-x', {
+      loading: () => {}, loaded: () => {}, failed: () => {},
+      rendering: () => {}, rendered: () => {}, renderFailed: () => {},
+    }) as { loadArchitecture: (version: string) => void }
+    face.loadArchitecture('v1')
+    await vi.waitFor(() => {
+      expect(b.readBytes).toHaveBeenCalledWith('session-x', 'ARCHITECTURE.md', {}, undefined)
+    })
 
     await b.fiber.dispose()
 

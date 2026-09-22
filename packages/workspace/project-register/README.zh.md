@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 本插件通过把每个里程碑写下来，落实"每个主要里程碑都要更新架构图"的要求。每个新完成的里程碑待办（内容以配置标记开头的条目）与每个完成的目标，都会向项目的 `DECISIONS.md` 追加一条 `milestone` 行，记录当日日期与 `done` 状态。该行的 Diagram 单格记录当时的 `ARCHITECTURE.md` Mermaid 架构图：指纹与上一个里程碑所记不同为 `updated`，自那以来未变为 `stale`，没有架构图为 `absent`。记录只作提示：任何失败都告警并丢弃该里程碑，从不阻塞被记录的工作。
 
@@ -18,7 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与待办](#known-limitations-and-deferred-work)
-- [维护者笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -91,7 +91,7 @@ kind: "package-reference"
 - 架构图指纹只检测内容变化，绝不证明身份。
 
 <a id="dev-note"></a>
-### 维护者笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>

@@ -7,7 +7,7 @@ kind: "package-library"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 项目标签页与里程碑记录器共享的浏览器安全项目登记辅助库。本包解析与追加 `DECISIONS.md` 决策登记表（`ID | Date | Kind | Title | Status | Diagram`），从 `ARCHITECTURE.md` 提取当前 Mermaid 架构图，计算图源指纹，对照最新里程碑行推导架构图的实时状态，并通过 `workspaceFiles` Remote 一次性读取完整的 UTF-8 工作区文件。本包不含 Cordis 服务或运行时状态。
 
@@ -15,7 +15,7 @@ kind: "package-library"
 
 - [登记表语法](#register-grammar)
 - [已知限制与待办](#known-limitations-and-deferred-work)
-- [维护者笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -37,7 +37,7 @@ kind: "package-library"
 
 
 <a id="dev-note"></a>
-### 维护者笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>
