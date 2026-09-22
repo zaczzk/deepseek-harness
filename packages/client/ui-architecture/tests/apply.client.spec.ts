@@ -1,5 +1,9 @@
 /** Plugin wiring: the Architecture conversation view registration. */
 import { describe, expect, it, vi } from 'vitest'
+
+// The Mermaid UMD is browser-only and installs a global; the wiring test
+// exercises registration, not rendering.
+vi.mock('mermaid/dist/mermaid.min.js', () => ({}))
 import { Context } from '@deepseek-ai/cordis'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
