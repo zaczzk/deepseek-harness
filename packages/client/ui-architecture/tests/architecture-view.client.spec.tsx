@@ -21,12 +21,12 @@ const MILESTONE = formatRegisterRow({
 })
 
 function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>): UseResource {
-  return () => ({
+  return ((_address: string) => ({
     status: 'live',
     value: { absolutePath: '/ws/x.md', version: 'v1' },
     failure: undefined,
     ...overrides,
-  }) as ResourceSnapshot<WorkspaceFileStat>
+  })) as UseResource
 }
 
 interface BenchOptions {

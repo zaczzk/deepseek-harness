@@ -5,7 +5,16 @@ import { EnhanceController } from '../src/client/enhance-controller.ts'
 import type { EnhancePreviewResult } from '@deepseek-ai/dsh-enhance-runtime'
 import { EnhanceButtonView } from '../src/client/EnhanceButtonView.tsx'
 import { EnhancePreviewView } from '../src/client/EnhancePreviewView.tsx'
-import { en } from '../src/client/locales.ts'
+import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/en.ts'
+import { en, type EnhanceKey } from '../src/client/locales.ts'
+import type { EnhanceButtonViewProps } from '../src/client/EnhanceButtonView.tsx'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    enhance: EnhanceKey
+  }
+}
 
 afterEach(cleanup)
 
@@ -20,8 +29,8 @@ const PREVIEW: EnhancePreviewResult = {
   text: 'Ship the settings page.\n\nAcceptance criteria:\n- [ ] Ship the settings page.',
 }
 
-/** The locale seat stub: keys resolve through the English dictionary. */
-const t = (key: string): string => en[key as keyof typeof en]
+/** Locale seat stub typed as the Enhance button/preview `t` prop. */
+const t: EnhanceButtonViewProps['t'] = makeTranslate(en, commonEn)
 
 /** Build a controller over recorded collaborators. */
 function bench(): {
