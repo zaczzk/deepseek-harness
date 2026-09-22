@@ -1362,7 +1362,7 @@ export function defineAcpSnapshotSuite(options: SnapshotSuiteOptions): void {
           ? tokenizeSessionFixtureCwd
           : (log: string): string => log
         const writesSessionFixtures = writesCurrentSessionFixtures(manifest, mode)
-          && ((RECORDING && scenario.recorded && scenario.hasModelTurn) || (REFRESHING && comparesLog))
+          && ((RECORDING && scenario.recorded && comparesLog) || (REFRESHING && comparesLog))
         if (writesSessionFixtures) {
           expect(result.sessionLogs.length, `${mode} produced no session log to harvest`).toBeGreaterThan(0)
           if (REFRESHING) {

@@ -1,0 +1,13 @@
+# ACP snapshot-record patch over the shipped `acp` profile: mount the /enhance
+# human command (in no shipped profile) and its scenario stimulus. The plugin's
+# `enhanceFile` resolves against the subprocess cwd — the generated scenario
+# workspace holding the committed `workspace/enhance.yml` seed.
+
+- insert:
+    - id: command-enhance
+      name: '@deepseek-ai/dsh-command-enhance'
+      config:
+        enhanceFile: enhance.yml
+
+    - id: snapshot-command-producer
+      name: './command-producer.mjs'
