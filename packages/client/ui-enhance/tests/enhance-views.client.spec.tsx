@@ -94,6 +94,7 @@ describe('EnhancePreviewView', () => {
     expect(dialog.querySelectorAll('[class*="caption"],[class*="footnote"],[class*="callout"]')).toHaveLength(0)
     expect(screen.getByRole('button', { name: en['action.accept'] })).toHaveProperty('disabled', false)
     fireEvent.click(screen.getByRole('button', { name: en['action.accept'] }))
+    await settle()
     expect(b.writes).toEqual([COMPLETE])
   })
 
@@ -183,6 +184,7 @@ describe('EnhancePreviewView', () => {
     b.streams[1]!.end()
     await settle()
     fireEvent.click(screen.getByRole('button', { name: en['action.accept'] }))
+    await settle()
     expect(b.writes).toEqual([COMPLETE])
   })
 })

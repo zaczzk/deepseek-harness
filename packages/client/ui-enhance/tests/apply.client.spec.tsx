@@ -143,6 +143,7 @@ describe('ui-enhance browser plugin', () => {
     await flush()
     expect(button.controller.state.getSnapshot()).toMatchObject({ status: 'ready', text: 'Structured rewrite.' })
     button.controller.accept()
+    await flush()
     expect(b.writes).toEqual(['Structured rewrite.'])
     expect(b.focusCount()).toBe(1)
   })
@@ -157,7 +158,7 @@ describe('ui-enhance browser plugin', () => {
     await flush()
     expect(b.streams[0]!.disposals()).toBe(1)
     expect(b.writes).toEqual([])
-    expect(button.controller.state.getSnapshot()).toEqual({ open: false, status: 'idle', original: '', text: '' })
+    expect(button.controller.state.getSnapshot()).toEqual({ open: false, status: 'idle', original: '', text: '', emitGoal: false })
   })
 
   it('fails loud when a session resolves no scope', async () => {

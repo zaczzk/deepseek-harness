@@ -3,7 +3,7 @@ import { EnhanceController } from '../src/client/enhance-controller.ts'
 import { enhanceDoubles } from './enhance-doubles.ts'
 
 /** The settled closed state every abort leaves behind. */
-const CLOSED = { open: false, status: 'idle', original: '', text: '' }
+const CLOSED = { open: false, status: 'idle', original: '', text: '', emitGoal: false }
 
 /** Manual animation-frame queue so each test owns its painted frames. */
 let frames: Array<() => void> = []
@@ -101,6 +101,7 @@ describe('EnhanceController', () => {
     await flush()
     expect(controller.state.getSnapshot()).toMatchObject({ status: 'ready', text: 'Hello\nworld' })
     controller.accept()
+    await flush()
     expect(b.writes).toEqual(['Hello\nworld'])
     expect(b.draft()).toBe('Hello\nworld')
     expect(b.focusCount()).toBe(1)
@@ -111,16 +112,18 @@ describe('EnhanceController', () => {
     const b = enhanceDoubles('original draft')
     const controller = new EnhanceController(b.deps)
     controller.accept()
+    await flush()
     expect(b.writes).toEqual([])
     controller.request()
     b.streams[0]!.push('partial')
     await flush()
     controller.accept()
+    await flush()
     expect(b.writes).toEqual([])
     expect(b.draft()).toBe('original draft')
     expect(b.focusCount()).toBe(0)
-    expect(b.streams[0]!.disposals()).toBe(1)
-    expect(controller.state.getSnapshot()).toEqual(CLOSED)
+    expect(b.streams[0]!.disposals()).toBe(0)
+    expect(controller.state.getSnapshot()).toMatchObject({ open: true, status: 'streaming' })
   })
 
   it('dismiss aborts the stream and discards the overlay byte-identical', async () => {
@@ -172,8 +175,9 @@ describe('EnhanceController', () => {
     b.streams[0]!.push('partial')
     b.streams[0]!.fail(new Error('socket down'))
     await flush()
-    expect(controller.state.getSnapshot()).toEqual({ open: true, status: 'error', original: 'original draft', text: '' })
+    expect(controller.state.getSnapshot()).toEqual({ open: true, status: 'error', original: 'original draft', text: '', emitGoal: false })
     controller.accept()
+    await flush()
     expect(b.writes).toEqual([])
   })
 
