@@ -26,6 +26,14 @@ export interface EnhanceStream extends AsyncIterable<EnhancePreviewChunk> {
   dispose(): void
 }
 
+/** Structured goal draft proposed by the preview's goal-bundle depth. */
+export interface EnhanceGoalDraft {
+  /** Objective text proposed for the goal domain. */
+  readonly objective: string
+  /** Completion criteria proposed for the goal domain. */
+  readonly completionCriteria: readonly string[]
+}
+
 /** Published preview state of one composer's Enhance flow. */
 export interface EnhanceState {
   /** Whether the preview popover is open. */
@@ -36,6 +44,8 @@ export interface EnhanceState {
   readonly original: string
   /** Streamed text painted so far; the complete rewrite once ready. */
   readonly text: string
+  /** Whether Accept also creates the previewed goal through the goal seam. */
+  readonly emitGoal: boolean
 }
 
 /** Host-reaching collaborators, built in `apply`'s ctx closure. */
@@ -46,14 +56,18 @@ export interface EnhanceDeps {
   readDraft: () => EnhanceDraft
   /** Subscribe to composer draft-state changes; returns the unsubscriber. */
   watchDraft: (onChange: () => void) => () => void
+  /** Resolve the structured goal draft of one draft, when its depth carries one. */
+  goalDraft?: (draft: string) => Promise<EnhanceGoalDraft | undefined>
+  /** Create one goal through the documented human-authoritative goal seam. */
+  createGoal?: (goal: EnhanceGoalDraft) => Promise<void>
   /** Replace the whole draft in one atomic write. */
   setDraft: (text: string) => void
   /** Return keyboard focus to the composer. */
   focus: () => void
 }
 
-/** The closed state: no popover, no stream, no text. */
-const CLOSED: EnhanceState = Object.freeze({ open: false, status: 'idle', original: '', text: '' })
+/** The closed state: no popover, no stream, no text, no goal emission. */
+const CLOSED: EnhanceState = Object.freeze({ open: false, status: 'idle', original: '', text: '', emitGoal: false })
 
 /** One in-flight streamed attempt before it settles or is discarded. */
 interface LiveAttempt {
@@ -99,7 +113,7 @@ export class EnhanceController {
   request(): void {
     const attempt = this.discard()
     const draft = this.deps.readDraft()
-    this.state.set({ open: true, status: 'pending', original: draft.text, text: '' })
+    this.state.set({ open: true, status: 'pending', original: draft.text, text: '', emitGoal: false })
     const live: LiveAttempt = {
       attempt,
       original: draft.text,
@@ -112,13 +126,46 @@ export class EnhanceController {
     void this.consume(live)
   }
 
-  /** Accept the settled text with the single atomic draft replace. */
+  /** Toggle whether Accept also creates the previewed goal. */
+  toggleGoal(): void {
+    const snapshot = this.state.getSnapshot()
+    if (snapshot.status !== 'ready') return
+    this.state.set({ ...snapshot, emitGoal: !snapshot.emitGoal })
+  }
+
+  /**
+   * Accept the settled text with the single atomic draft replace, optionally
+   * creating the previewed goal first through the goal seam. A goal-create
+   * failure settles the error tier with the preview retained: the draft is
+   * never touched and Accept can retry.
+   */
   accept(): void {
-    const { status, text } = this.state.getSnapshot()
-    this.discard()
-    if (status !== 'ready') return
-    this.deps.setDraft(text)
-    this.deps.focus()
+    const snapshot = this.state.getSnapshot()
+    if (snapshot.status !== 'ready') return
+    const attempt = this.attempt
+    void this.emitGoalIfNeeded(snapshot).then((created) => {
+      if (attempt !== this.attempt || !created) return
+      this.discard()
+      this.deps.setDraft(snapshot.text)
+      this.deps.focus()
+    }, () => {
+      if (attempt !== this.attempt) return
+      this.closeStream()
+      this.state.set({ ...snapshot, status: 'error' })
+    })
+  }
+
+  /**
+   * Resolve and create the previewed goal when emission is on.
+   * @param snapshot - the settled preview carrying the diffed draft identity.
+   * @returns whether the draft may now be replaced.
+   */
+  private async emitGoalIfNeeded(snapshot: EnhanceState): Promise<boolean> {
+    if (!snapshot.emitGoal || this.deps.createGoal === undefined || this.deps.goalDraft === undefined) return true
+    const goal = await this.deps.goalDraft(snapshot.original)
+    if (goal === undefined) return true
+    await this.deps.createGoal(goal)
+    return true
   }
 
   /** Abort the stream and dismiss the popover without touching the draft. */
@@ -154,18 +201,18 @@ export class EnhanceController {
       for await (const chunk of live.stream) {
         if (live.attempt !== this.attempt) return
         live.text += chunk.text
-        this.state.set({ open: true, status: 'streaming', original: live.original, text: live.text })
+        this.state.set({ open: true, status: 'streaming', original: live.original, text: live.text, emitGoal: false })
       }
     } catch {
       // A failed stream lands no text: the error tier shows its single line.
       if (live.attempt !== this.attempt) return
       this.closeStream()
-      this.state.set({ open: true, status: 'error', original: live.original, text: '' })
+      this.state.set({ open: true, status: 'error', original: live.original, text: '', emitGoal: false })
       return
     }
     if (live.attempt !== this.attempt) return
     this.closeStream()
-    this.state.set({ open: true, status: 'ready', original: live.original, text: live.text })
+    this.state.set({ open: true, status: 'ready', original: live.original, text: live.text, emitGoal: false })
   }
 
   /** Abort instantly on the first draft-revision change while streaming. */
