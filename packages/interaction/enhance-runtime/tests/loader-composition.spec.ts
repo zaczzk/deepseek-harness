@@ -47,6 +47,7 @@ describe('enhance preview real Loader composition through cordis.yml', () => {
       "- name: '@deepseek-ai/dsh-enhance-runtime'",
       '  config:',
       `    enhanceFile: '${enhanceFile}'`,
+      '    onMissing: \'fail\'',
       '',
     ].join('\n'))
 

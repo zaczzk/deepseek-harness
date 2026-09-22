@@ -27,6 +27,7 @@ async function enhanceOverlay(): Promise<string> {
     "    name: '@deepseek-ai/dsh-enhance-runtime'",
     '    config:',
     `      enhanceFile: '${RUBRIC.replaceAll('\\', '/')}'`,
+    "      onMissing: 'fail'",
     '',
   ].join('\n'))
   return overlay

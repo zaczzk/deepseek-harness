@@ -44,7 +44,7 @@ async function harness(enhanceYaml: string = ENHANCE_YAML): Promise<{ ctx: Conte
   await writeFile(enhanceFile, enhanceYaml)
   const ctx = new Context()
   context = ctx
-  await ctx.plugin(EnhanceRuntime, { enhanceFile })
+  await ctx.plugin(EnhanceRuntime, { enhanceFile, onMissing: 'fail' })
   return { ctx, enhance: ctx.enhance }
 }
 
@@ -52,16 +52,11 @@ async function harness(enhanceYaml: string = ENHANCE_YAML): Promise<{ ctx: Conte
 async function mountOutcome(enhanceFile: string): Promise<string> {
   const ctx = new Context()
   context = ctx
-  return ctx.plugin(EnhanceRuntime, { enhanceFile })
+  return ctx.plugin(EnhanceRuntime, { enhanceFile, onMissing: 'fail' })
     .then(() => 'mounted', (error: unknown) => (error instanceof Error ? error.message : String(error)))
 }
 
 describe('@deepseek-ai/dsh-enhance-runtime rubric loading', () => {
-  it('fails loud on a missing rubric file', async () => {
-    root = await mkdtemp(join(tmpdir(), 'dsh-enhance-runtime-'))
-    expect(await mountOutcome(join(root, 'absent.yml'))).toMatch(/failed to load .*absent\.yml/u)
-  })
-
   it('fails loud on invalid YAML and on violated rules', async () => {
     root = await mkdtemp(join(tmpdir(), 'dsh-enhance-runtime-'))
     const enhanceFile = join(root, 'enhance.yml')
@@ -69,6 +64,14 @@ describe('@deepseek-ai/dsh-enhance-runtime rubric loading', () => {
     expect(await mountOutcome(enhanceFile)).toMatch(/failed to load/u)
     await writeFile(enhanceFile, 'principles: []\ndefaultDepth: spec\n')
     expect(await mountOutcome(enhanceFile)).toMatch(/principles: must be a non-empty array/u)
+  })
+  it('disables previews under onMissing: disable when the rubric is absent', async () => {
+    root = await mkdtemp(join(tmpdir(), 'dsh-enhance-runtime-'))
+    const ctx = new Context()
+    context = ctx
+    await ctx.plugin(EnhanceRuntime, { enhanceFile: join(root, 'absent.yml'), onMissing: 'disable' })
+    expect(() => ctx.enhance.preview({ draft: 'build the settings page now' }))
+      .toThrow(/no rubric at .*absent\.yml/u)
   })
 })
 

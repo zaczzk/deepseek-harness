@@ -32,11 +32,17 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` registers the
+   * command with its result reporting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 
 /** Loader schema for the {@link Config} record. */
 export const Config: z<Config> = z.object({
   enhanceFile: z.string(),
+  onMissing: z.union(['fail', 'disable'] as const),
 })
 
 /**
@@ -47,14 +53,20 @@ export const Config: z<Config> = z.object({
  * @returns the validated rubric configuration.
  * @throws {@link EnhanceError} when the file cannot be read, parsed, or validated.
  */
-function loadEnhanceConfig(enhanceFile: string): EnhanceConfig {
+function loadEnhanceConfig(enhanceFile: string, onMissing: 'fail' | 'disable'): EnhanceConfig | undefined {
   try {
     return validateEnhanceConfig(parseYaml(readFileSync(enhanceFile, 'utf8')))
   } catch (error: unknown) {
+    if (onMissing === 'disable' && isMissingFile(error)) return undefined
     /* v8 ignore next -- node:fs, yaml, and EnhanceError all throw Error instances */
     const reason = error instanceof Error ? error.message : String(error)
     throw new EnhanceError(`enhance: failed to load ${enhanceFile}: ${reason}`)
   }
+}
+
+/** Whether the failure is exactly a missing rubric file. */
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
 }
 
 /** Parsed `/enhance` input: an optional depth override and the draft. */
@@ -98,7 +110,10 @@ function routeAdvice(spec: EnhanceSpec): string {
 }
 
 /** Execute one parsed human command through the deterministic pipeline. */
-function executeEnhance(config: EnhanceConfig, invocation: CommandInvocation): CommandResult {
+function executeEnhance(enhanceFile: string, config: EnhanceConfig | undefined, invocation: CommandInvocation): CommandResult {
+  if (config === undefined) {
+    return { kind: 'error', text: `enhance: no rubric at ${enhanceFile}; create it and reload` }
+  }
   const parsed = parseInput(invocation.rawInput, config)
   if (parsed === undefined) {
     return { kind: 'error', text: `Usage: /enhance [<depth>] <draft> (depths: ${Object.keys(config.depths).join(', ')})` }
@@ -120,12 +135,12 @@ function executeEnhance(config: EnhanceConfig, invocation: CommandInvocation): C
  * @throws {@link EnhanceError} when the rubric file is missing or invalid.
  */
 export function apply(ctx: Context, config: Config): void {
-  const enhanceConfig = loadEnhanceConfig(config.enhanceFile)
+  const enhanceConfig = loadEnhanceConfig(config.enhanceFile, config.onMissing)
   ctx.commands.register({
     definitionId: CommandDefinitionId('@deepseek-ai/dsh-command-enhance'),
     name: 'enhance',
     description: 'Structure a draft into a task, goal, and todo list',
     input: { hint: '[<depth>] <draft>' },
-    handler: invocation => executeEnhance(enhanceConfig, invocation),
+    handler: invocation => executeEnhance(config.enhanceFile, enhanceConfig, invocation),
   })
 }

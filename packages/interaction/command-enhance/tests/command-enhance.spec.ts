@@ -30,7 +30,7 @@ afterEach(async () => {
 
 /** Observe plugin-mount failure without formatting a Cordis proxy in a diff. */
 async function mountOutcome(ctx: Context, enhanceFile: string): Promise<string> {
-  return ctx.plugin(commandEnhance, { enhanceFile })
+  return ctx.plugin(commandEnhance, { enhanceFile, onMissing: 'fail' })
     .then(() => 'mounted', (error: unknown) => (error instanceof Error ? error.message : String(error)))
 }
 
@@ -73,7 +73,7 @@ async function harness(enhanceYaml: string = ENHANCE_YAML): Promise<Harness> {
   const enhanceFile = join(root, 'enhance.yml')
   await writeFile(enhanceFile, enhanceYaml)
   const ctx = await loadContext()
-  const plugin = await ctx.plugin(commandEnhance, { enhanceFile })
+  const plugin = await ctx.plugin(commandEnhance, { enhanceFile, onMissing: 'fail' })
   const session = ctx.sessions.create(SessionId(`enhance-${Math.random()}`))
   let status: AgentStatus = 'idle'
   const agent: Agent = {
