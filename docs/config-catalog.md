@@ -564,6 +564,25 @@ Depends on: `Volatile` (`@deepseek-ai/cordis`)
 
 Source: [`packages/client/ui-theme/src/index.ts:22`](../packages/client/ui-theme/src/index.ts)
 
+<a id="deepseek-aidsh-command-enhance"></a>
+
+## `@deepseek-ai/dsh-command-enhance`
+
+Requires: `commands`
+
+```ts config-catalog
+/** Required rubric-file policy; this plugin adds no defaults. */
+export interface Config {
+  /**
+   * Path to the workspace `.dsh/enhance.yml`. A relative path resolves
+   * against the process working directory at plugin load.
+   */
+  readonly enhanceFile: string
+}
+```
+
+Source: [`packages/interaction/command-enhance/src/index.ts:29`](../packages/interaction/command-enhance/src/index.ts)
+
 <a id="deepseek-aidsh-compaction-basic"></a>
 
 ## `@deepseek-ai/dsh-compaction-basic`
@@ -705,6 +724,23 @@ export interface Config {
 ```
 
 Source: [`packages/credentials/deepseek-account-platform/src/index.ts:23`](../packages/credentials/deepseek-account-platform/src/index.ts)
+
+<a id="deepseek-aidsh-enhance-runtime"></a>
+
+## `@deepseek-ai/dsh-enhance-runtime`
+
+```ts config-catalog
+/** Required rubric-file policy; this plugin adds no defaults. */
+export interface Config {
+  /**
+   * Path to the workspace `.dsh/enhance.yml`. A relative path resolves
+   * against the process working directory at plugin load.
+   */
+  readonly enhanceFile: string
+}
+```
+
+Source: [`packages/interaction/enhance-runtime/src/index.ts:35`](../packages/interaction/enhance-runtime/src/index.ts)
 
 <a id="deepseek-aidsh-experimental-agent-team"></a>
 
@@ -4149,6 +4185,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-deliverables` — requires `systemPrompt` · `connection` · `sessionQuery` · `sessionController` · `workspaceFiles` · `fs` · `sandboxPolicy` · `workspaceChanges` ([`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse` ([`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-directory-picker-native` ([`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-enhance` ([`packages/client/ui-enhance/src/index.ts`](../packages/client/ui-enhance/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-goal` ([`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-input-trigger` ([`packages/client/ui-input-trigger/src/index.ts`](../packages/client/ui-input-trigger/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-jobs` ([`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts))
@@ -4267,6 +4304,7 @@ Imported as libraries by other packages; a `cordis.yml` cannot load them.
 - `@deepseek-ai/dsh-client-web` ([`packages/client/web/src/index.ts`](../packages/client/web/src/index.ts))
 - `@deepseek-ai/dsh-cmdline` ([`packages/boot/cmdline/src/index.ts`](../packages/boot/cmdline/src/index.ts))
 - `@deepseek-ai/dsh-deque` ([`packages/util/deque/src/index.ts`](../packages/util/deque/src/index.ts))
+- `@deepseek-ai/dsh-enhance` ([`packages/interaction/enhance/src/index.ts`](../packages/interaction/enhance/src/index.ts))
 - `@deepseek-ai/dsh-experimental-agent-team-profile` ([`packages/experimental/agent-team-profile/src/index.ts`](../packages/experimental/agent-team-profile/src/index.ts))
 - `@deepseek-ai/dsh-experimental-browser-use-runtime` ([`packages/experimental/browser-use-runtime/src/index.ts`](../packages/experimental/browser-use-runtime/src/index.ts))
 - `@deepseek-ai/dsh-experimental-voice-input-bundle` ([`packages/experimental/voice-input-bundle/src/index.ts`](../packages/experimental/voice-input-bundle/src/index.ts))

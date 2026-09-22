@@ -199,6 +199,38 @@ Types: [Agent](core.zh.md)
 
 Source: [`packages/interaction/commands/src/index.ts`](../../packages/interaction/commands/src/index.ts)
 
+<a id="ctxenhance--enhanceruntime"></a>
+
+### `ctx.enhance` — `EnhanceRuntime`
+
+Deterministic preview service over the zero-dependency enhancement pipeline. Owns rubric loading and runs no model call and no session writes, so previews are transient and keylessly testable.
+
+```ts cordis-catalog
+/**
+ * Resolve and render one draft through the deterministic template stage.
+ *
+ * @param request - draft text with optional depth and direction.
+ * @returns classifier facts, structured sections, and rendered text.
+ * @throws {@link EnhanceError} when the draft is blank or the depth is undeclared.
+ */
+@Remote preview(request: EnhancePreviewRequest): EnhancePreviewResult
+
+/**
+ * Stream the plain-text projection of one draft's deterministic rewrite as
+ * progressive line chunks. Structured sections ride `preview`; this method
+ * carries the text projection only and settles with no terminal item. Like
+ * `preview`, it runs no model call and appends no session events.
+ *
+ * @param request - draft text with optional depth and direction.
+ * @param signal - cancellation owned by the Remote stream carrier.
+ * @returns one chunk per rendered line, ending quietly on cancellation.
+ * @throws {@link EnhanceError} when the draft is blank or the depth is undeclared.
+ */
+@Remote({ mode: 'stream' }) previewText(request: EnhancePreviewRequest, signal: AbortSignal): AsyncIterable<EnhancePreviewChunk>
+```
+
+Source: [`packages/interaction/enhance-runtime/src/index.ts`](../../packages/interaction/enhance-runtime/src/index.ts)
+
 <a id="commands-events"></a>
 
 ### `commands/*` events
