@@ -4,6 +4,7 @@ import { attributionHeaders, LlmAdapter, LlmError } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, ImageAttachmentAccessResolver, PreparedAdapterCall, StreamChunk } from '@deepseek-ai/dsh-llm'
 import type { DeepSeekLlmApiJson } from '@deepseek-ai/dsh-deepseek-llm-api-extensions'
 import { idleWatchdog, timeoutOf } from '@deepseek-ai/dsh-timeout'
+import { assertNever } from '@deepseek-ai/dsh-util-values'
 import { catalogModelInfo, modelInfo } from './model-info.ts'
 import type { DeepSeekAdapterOptions, DeepSeekConnectionOptions as Connection } from './types.ts'
 import { DeepSeekFileStore } from './file-store.ts'
@@ -15,6 +16,27 @@ import { serialize } from './serialize.ts'
 import { parseSse } from './sse.ts'
 import { translate } from './translate.ts'
 import { providerError, providerErrorDetail } from './transport.ts'
+
+/**
+ * Model-hidden transport headers owned by the request's auxiliary purpose.
+ * Only `compaction` marks the request for the provider; `session-title` and
+ * `enhance` auxiliary calls send no additional purpose header.
+ * @param purpose - provider-neutral auxiliary-call classification.
+ * @returns the purpose-owned headers for one request.
+ */
+function purposeHeaders(purpose: GenerateOptions['purpose']): Record<string, string> {
+  switch (purpose) {
+    case 'compaction':
+      return { 'x-deepseek-harness-compact': '1' }
+    case 'session-title':
+    case 'enhance':
+      return {}
+    case undefined:
+      return {}
+    default:
+      return assertNever(purpose, 'adapter purpose')
+  }
+}
 
 /** DeepSeek provider using Messages content and native thinking replay. */
 export class DeepSeekAdapter extends LlmAdapter {
@@ -120,7 +142,7 @@ export class DeepSeekAdapter extends LlmAdapter {
           ...fileIds === undefined || fileIds.size === 0 ? {} : { 'anthropic-beta': MESSAGES_FILES_BETA },
           'x-deepseek-harness-user-id': this.dependencies.resolveUserId(),
           ...options.sessionId === undefined ? {} : { 'x-deepseek-harness-session-id': String(options.sessionId) },
-          ...options.purpose === 'compaction' ? { 'x-deepseek-harness-compact': '1' } : {},
+          ...purposeHeaders(options.purpose),
         },
       })
       if (!response.ok) {

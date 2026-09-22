@@ -7,6 +7,7 @@
       name: '@deepseek-ai/dsh-command-enhance'
       config:
         enhanceFile: enhance.yml
+        onMissing: 'fail'
 
     - id: snapshot-command-producer
       name: './command-producer.mjs'

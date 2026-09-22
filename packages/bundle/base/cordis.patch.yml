@@ -309,6 +309,18 @@
     - id: command-feedback
       name: '@deepseek-ai/dsh-command-feedback'
 
+    - id: command-enhance
+      name: '@deepseek-ai/dsh-command-enhance'
+      config:
+        enhanceFile: '.dsh/enhance.yml'
+        onMissing: 'disable'
+
+    - id: enhance-runtime
+      name: '@deepseek-ai/dsh-enhance-runtime'
+      config:
+        enhanceFile: '.dsh/enhance.yml'
+        onMissing: 'disable'
+
     - id: goal
       name: '@deepseek-ai/dsh-goal'
 

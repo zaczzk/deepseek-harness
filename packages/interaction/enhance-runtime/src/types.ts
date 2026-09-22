@@ -23,6 +23,12 @@ export interface EnhancePreviewRequest {
   readonly direction?: EnhanceDirection
 }
 
+/** One progressive text delta of a streamed preview's plain-text projection. */
+export interface EnhancePreviewChunk {
+  /** Text appended to the projection so far. */
+  readonly text: string
+}
+
 /** Resolved preview: classifier facts, structured sections, and rendered text. */
 export interface EnhancePreviewResult {
   /** Predicted route for the draft. */

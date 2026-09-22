@@ -131,6 +131,12 @@ describe('direct Messages HTTP', () => {
     expect(llm.imageRequestPricing('deepseek-official', MODEL)).toBeDefined()
   })
 
+  it.each(['session-title', 'enhance'] as const)('sends no purpose header for %s auxiliary requests', async (purpose) => {
+    const http = await endpoint()
+    await assemble(adapter({ baseURL: http.url }).stream(options({ purpose })))
+    expect(http.requests[0]?.headers).not.toHaveProperty('x-deepseek-harness-compact')
+  })
+
   it.each([
     ['https://provider.example', 'https://provider.example/v1/messages'],
     ['https://provider.example/v1/', 'https://provider.example/v1/messages'],

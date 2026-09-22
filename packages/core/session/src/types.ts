@@ -272,6 +272,60 @@ export interface RequestContext {
  */
 export type RequestHeaderReason = 'initial' | 'resume' | 'change' | 'series'
 
+/** Identifies one Enhance refinement attempt across its logged records. */
+export type EnhanceAttemptId = Branded<'EnhanceAttemptId'>
+
+/**
+ * Brand a string as an {@link EnhanceAttemptId}.
+ * @param id - the raw attempt id string.
+ * @returns the same string with the Enhance-attempt-id brand.
+ */
+export function EnhanceAttemptId(id: string): EnhanceAttemptId {
+  return brandString<EnhanceAttemptId>(id)
+}
+
+/**
+ * How one Enhance refinement attempt settled: `'refined'` — a refined bundle
+ * was accepted from the first model call; `'repaired'` — a refined bundle was
+ * accepted after one bounded repair round; `'template-fallback'` — the template
+ * bundle served as the attempt's output; `'failed'` — the attempt produced no
+ * accepted output.
+ */
+export type EnhanceAttemptDisposition =
+  | 'template-fallback'
+  | 'repaired'
+  | 'failed'
+  | 'refined'
+
+/**
+ * Exact model-visible request and settlement of one Enhance refinement attempt.
+ * The request fields are the literal request content the model sees, so a
+ * reader reconstructs the exact auxiliary call from the log.
+ */
+export interface EnhanceAttemptEventData {
+  /** Identity shared by every record of this refinement attempt. */
+  readonly attemptId: EnhanceAttemptId
+  /** Exact system prompt text sent with the refinement request. */
+  readonly system: string
+  /** Exact framed input text of the refinement request's user message. */
+  readonly framedInput: string
+  /** Resolved model route the refinement request dispatched to. */
+  readonly route: {
+    /** Registered provider route. */
+    readonly provider: string
+    /** Provider model id. */
+    readonly model: string
+  }
+  /** Hash of the rubric and refinement configuration the attempt ran with. */
+  readonly rubricConfigHash: string
+  /** Hash of the request context slice, or `null` when no slice was captured. */
+  readonly contextSliceHash: string | null
+  /** Exact output-token cap of the refinement request. */
+  readonly maxTokens: number
+  /** How the attempt settled. */
+  readonly disposition: EnhanceAttemptDisposition
+}
+
 /**
  * The merge-extensible, append-only source of truth for an agent interaction.
  * Message history is derived from this log. Every event is lossless JSON and
@@ -353,6 +407,15 @@ export interface SessionEventMap {
    * reached settlement without fabricating model-visible history.
    */
   'assistant/attempt': { turn: number; step: number; stream: AssistantStreamRecord[] }
+  /**
+   * Settled record of one Enhance refinement attempt: the exact model request
+   * (system text and framed input), the resolved route, hashes, and output cap
+   * that reconstruct the call, and the disposition that settled the attempt.
+   * Log-only — it never enters the model surface or derived history — and an
+   * {@link IgnorableEventType} member, so its envelope carries `ignorable:
+   * true` and builds that predate the type still read the log.
+   */
+  'enhance/attempt': EnhanceAttemptEventData
   /**
    * The model requested one tool invocation: `name` with the raw `arguments`
    * JSON string exactly as the model produced it (unparsed). `callId` pairs the
@@ -442,6 +505,30 @@ export type SurfaceEventType =
   | 'user/message'
   | 'assistant/message'
   | 'tool/result'
+
+/**
+ * The subset of {@link SessionEventType} values whose envelopes always carry
+ * {@link SessionEvent.ignorable}: purely informational records whose loss
+ * cannot affect reconstruction, so builds that predate the type still read a
+ * log containing them. {@link Session.append} accepts these events only with
+ * their {@link IgnorableIntent} marker, and seed admission refuses one without it.
+ */
+export type IgnorableEventType = 'enhance/attempt'
+
+/**
+ * Envelope metadata {@link Session.append} requires for one
+ * {@link IgnorableEventType} event: the marker a reader uses to skip a record
+ * it does not recognize. Ignorable records never join the ordered surface and
+ * never cite source events.
+ */
+export interface IgnorableIntent {
+  /** The envelope's skip marker this event type must carry. */
+  ignorable: true
+  /** Ignorable records are not surface-eligible. */
+  surfaceOp?: never
+  /** Ignorable records cite no source events. */
+  sourceEventSeqs?: never
+}
 
 /** A message-producing event carrying its required surface operation. */
 export type SurfaceEvent = SessionEvent<SurfaceEventType>

@@ -1,6 +1,7 @@
 /** Map system snapshots and conversation turns to Messages using the configured route capability. */
 
 import { LlmError, requestImageHandleText } from '@deepseek-ai/dsh-llm'
+import { assertNever } from '@deepseek-ai/dsh-util-values'
 import type { ContentBlock, GenerateOptions, ImageAttachmentAccessResolver, Message, RequestMessage } from '@deepseek-ai/dsh-llm'
 import type { ImageAttachmentRef, RequestImageAttachment } from '@deepseek-ai/dsh-attachment'
 import type { DeepSeekConnectionOptions as Connection } from './types.ts'
@@ -36,6 +37,26 @@ function assistant(message: Message, model: string, onReplayDegrade?: (reason: s
       default: return unsupported(`assistant content ${block.type}`)
     }
   })
+}
+
+/**
+ * Whether the request's auxiliary purpose generates without reasoning effort.
+ * One-shot auxiliary calls (`session-title`, `enhance`) disable thinking;
+ * `compaction` and ordinary requests follow the connection policy.
+ * @param purpose - provider-neutral auxiliary-call classification.
+ * @returns `true` when the purpose forces reasoning off.
+ */
+function purposeDisablesReasoning(purpose: GenerateOptions['purpose']): boolean {
+  switch (purpose) {
+    case 'session-title':
+    case 'enhance':
+      return true
+    case 'compaction':
+    case undefined:
+      return false
+    default:
+      return assertNever(purpose, 'serialize purpose')
+  }
 }
 
 /** Serialize one complete request using already prepared image bytes.
@@ -132,7 +153,7 @@ export function serialize(
     }
   }
   if (pending.size > 0) throw new LlmError('DeepSeek Messages history ends with unresolved tools', 'INVALID_REQUEST')
-  const effort = options.purpose === 'session-title' ? 'off' : options.reasoningEffort ?? (connection.defaults.reasoningEffort ?? (connection.defaults.thinking === 'disabled' ? 'off' : 'high'))
+  const effort = purposeDisablesReasoning(options.purpose) ? 'off' : options.reasoningEffort ?? (connection.defaults.reasoningEffort ?? (connection.defaults.thinking === 'disabled' ? 'off' : 'high'))
   if (!['off', 'low', 'high', 'max'].includes(effort) || (connection.defaults.thinking === 'disabled' && effort !== 'off')) {
     throw new LlmError(`DeepSeek Messages does not support reasoning effort ${effort}`, 'UNSUPPORTED_REASONING_EFFORT')
   }

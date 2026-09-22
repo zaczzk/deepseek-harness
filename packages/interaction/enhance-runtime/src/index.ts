@@ -1,7 +1,8 @@
 /**
  * Host-side preview service behind the Enhance addon's Typert Remote face.
  * One `preview()` call resolves and renders one deterministic bundle through
- * `@deepseek-ai/dsh-enhance` against the rubric validated at plugin load. A
+ * `@deepseek-ai/dsh-enhance` against the rubric validated at plugin load;
+ * `previewText()` streams the same render as progressive text chunks. A
  * preview runs no model call and appends no session events: the accepted text
  * becomes model-visible only when the human sends it as an ordinary message.
  *
@@ -24,7 +25,7 @@ import type {
   EnhanceRequest,
 } from '@deepseek-ai/dsh-enhance'
 import { TypertRemoteService, Remote } from '@deepseek-ai/dsh-typert-protocol'
-import type { EnhancePreviewRequest, EnhancePreviewResult } from './types.ts'
+import type { EnhancePreviewChunk, EnhancePreviewRequest, EnhancePreviewResult } from './types.ts'
 
 export type * from './types.ts'
 
@@ -37,11 +38,17 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` mounts the
+   * service with previews rejecting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 
 /** Loader schema for the {@link Config} record. */
 export const Config: z<Config> = z.object({
   enhanceFile: z.string(),
+  onMissing: z.union(['fail', 'disable'] as const),
 })
 
 declare module '@deepseek-ai/cordis' {
@@ -58,13 +65,33 @@ declare module '@deepseek-ai/cordis' {
  * @returns the validated rubric configuration.
  * @throws {@link EnhanceError} when the file cannot be read, parsed, or validated.
  */
-function loadEnhanceConfig(enhanceFile: string): EnhanceConfig {
+function loadEnhanceConfig(enhanceFile: string, onMissing: 'fail' | 'disable'): EnhanceConfig | undefined {
   try {
     return validateEnhanceConfig(parseYaml(readFileSync(enhanceFile, 'utf8')))
   } catch (error: unknown) {
+    if (onMissing === 'disable' && isMissingFile(error)) return undefined
     /* v8 ignore next -- node:fs, yaml, and EnhanceError all throw Error instances */
     const reason = error instanceof Error ? error.message : String(error)
     throw new EnhanceError(`enhance-runtime: failed to load ${enhanceFile}: ${reason}`)
+  }
+}
+
+/** Whether the failure is exactly a missing rubric file. */
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'
+}
+
+/**
+ * Deliver one rendered projection as progressive line deltas.
+ *
+ * @param text - complete rendered projection.
+ * @param signal - cancellation owned by the Remote stream carrier.
+ * @returns one chunk per rendered line, ending quietly on cancellation.
+ */
+async function* streamText(text: string, signal: AbortSignal): AsyncIterable<EnhancePreviewChunk> {
+  for (const line of text.split(/(?<=\n)/u)) {
+    if (signal.aborted) return
+    yield { text: line }
   }
 }
 
@@ -74,18 +101,21 @@ function loadEnhanceConfig(enhanceFile: string): EnhanceConfig {
  * so previews are transient and keylessly testable.
  */
 export default class EnhanceRuntime extends TypertRemoteService {
-  /** Validated rubric configuration loaded once at plugin load. */
-  private readonly rubric: EnhanceConfig
+  /** Validated rubric; undefined only under `onMissing: 'disable'`. */
+  private readonly rubric: EnhanceConfig | undefined
+  /** Configured rubric path, named by the disabled-mode error. */
+  private readonly enhanceFile: string
 
   /**
    * Load the rubric and bind the `enhance` service key to Typert Gateway.
    * @param ctx - owning Cordis Context.
    * @param config - required rubric-file policy.
-   * @throws {@link EnhanceError} when the rubric file is missing or invalid.
+   * @throws {@link EnhanceError} when the rubric is missing under `onMissing: 'fail'` or is invalid.
    */
   constructor(ctx: Context, config: Config) {
     super(ctx, 'enhance')
-    this.rubric = loadEnhanceConfig(config.enhanceFile)
+    this.enhanceFile = config.enhanceFile
+    this.rubric = loadEnhanceConfig(config.enhanceFile, config.onMissing)
   }
 
   /**
@@ -97,6 +127,9 @@ export default class EnhanceRuntime extends TypertRemoteService {
    */
   @Remote
   preview(request: EnhancePreviewRequest): EnhancePreviewResult {
+    if (this.rubric === undefined) {
+      throw new EnhanceError(`enhance-runtime: no rubric at ${this.enhanceFile}; create it and reload`)
+    }
     const resolved: EnhanceRequest = {
       draft: request.draft,
       ...request.depth === undefined ? {} : { depth: request.depth },
@@ -113,5 +146,21 @@ export default class EnhanceRuntime extends TypertRemoteService {
       sections: bundle.sections,
       text: renderBundleText(bundle),
     })
+  }
+
+  /**
+   * Stream the plain-text projection of one draft's deterministic rewrite as
+   * progressive line chunks. Structured sections ride `preview`; this method
+   * carries the text projection only and settles with no terminal item. Like
+   * `preview`, it runs no model call and appends no session events.
+   *
+   * @param request - draft text with optional depth and direction.
+   * @param signal - cancellation owned by the Remote stream carrier.
+   * @returns one chunk per rendered line, ending quietly on cancellation.
+   * @throws {@link EnhanceError} when the draft is blank or the depth is undeclared.
+   */
+  @Remote({ mode: 'stream' })
+  previewText(request: EnhancePreviewRequest, signal: AbortSignal): AsyncIterable<EnhancePreviewChunk> {
+    return streamText(this.preview(request).text, signal)
   }
 }
