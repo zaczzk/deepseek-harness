@@ -1,0 +1,13 @@
+principles:
+  - id: modularity
+    text: Prefer modular components.
+skipPatterns: []
+limits:
+  minDraftCharacters: 10
+  foldBelowCharacters: 30
+  splitAboveCharacters: 200
+  maxExamples: 2
+depths:
+  spec: [objective, context, constraints, acceptance, verification]
+defaultDepth: spec
+outputLanguage: auto

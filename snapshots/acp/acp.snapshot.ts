@@ -26,6 +26,7 @@ function snapshotMode(value: string | undefined): SnapshotSuiteOptions['mode'] {
 const controllerCases: readonly {
   readonly name: string
   readonly hasModelTurn: boolean
+  readonly comparesLog?: boolean
   readonly configPath?: string
 }[] = [
   { name: 'handshake', hasModelTurn: false },
@@ -40,6 +41,12 @@ const controllerCases: readonly {
     name: 'image-compaction',
     hasModelTurn: true,
     configPath: join(corpusDir, 'image-compaction', 'cordis.yml'),
+  },
+  {
+    name: 'enhance-command',
+    hasModelTurn: false,
+    comparesLog: true,
+    configPath: join(corpusDir, 'enhance-command', 'cordis.yml'),
   },
 ] as const
 

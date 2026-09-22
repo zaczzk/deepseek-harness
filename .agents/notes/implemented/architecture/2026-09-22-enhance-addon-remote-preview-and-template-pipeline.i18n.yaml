@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-09-22-enhance-addon-remote-preview-and-template-pipeline.md
+2026-09-22-enhance-addon-remote-preview-and-template-pipeline.md: 8676f35fce11f3cde686f7737cdaf9025273349e
+2026-09-22-enhance-addon-remote-preview-and-template-pipeline.zh.md: d6f1e53c5b648a4df3011059d8609a9dfe84d668

@@ -1,0 +1,12 @@
+# Replay-only sibling of `cordis.yml`: its complete delta over the base patch.
+# The scenario drives no model turn, so replay composes the identical rows and
+# the live model catalog stays byte-equal with the record run's stdout.
+
+- insert:
+    - id: command-enhance
+      name: '@deepseek-ai/dsh-command-enhance'
+      config:
+        enhanceFile: enhance.yml
+
+    - id: snapshot-command-producer
+      name: './command-producer.mjs'

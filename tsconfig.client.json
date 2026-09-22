@@ -62,6 +62,7 @@
     { "path": "./packages/client/store" },
     { "path": "./packages/client/ui-slots" },
     { "path": "./packages/client/ui-attachment" },
+    { "path": "./packages/client/ui-enhance" },
     { "path": "./packages/client/ui-primitives" },
     { "path": "./packages/util/project-register" },
     { "path": "./packages/client/modules" },

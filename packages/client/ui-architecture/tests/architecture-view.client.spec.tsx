@@ -20,8 +20,8 @@ const MILESTONE = formatRegisterRow({
   status: 'done', diagram: { flag: 'stale', fingerprint: diagramFingerprint(DIAGRAM) },
 })
 
-function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>) {
-  return (() => ({
+function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>): UseResource {
+  return ((_address: string) => ({
     status: 'live',
     value: { absolutePath: '/ws/x.md', version: 'v1' },
     failure: undefined,

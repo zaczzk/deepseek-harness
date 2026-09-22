@@ -26,8 +26,8 @@ const MILESTONE: RegisterRow = {
 }
 const REGISTER_TEXT = `${formatRegisterRow(DECISION)}\n${formatRegisterRow(MILESTONE)}\n`
 
-function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>) {
-  return (() => ({
+function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>): UseResource {
+  return ((_address: string) => ({
     status: 'live',
     value: { absolutePath: '/ws/DECISIONS.md', version: 'v1' },
     failure: undefined,

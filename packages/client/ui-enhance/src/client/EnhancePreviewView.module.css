@@ -1,0 +1,44 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-space-2);
+  max-height: inherit;
+  padding: var(--dsw-space-3);
+  border-radius: var(--dsw-radius-panel);
+  background: var(--dsw-surface-elevated);
+  box-shadow: var(--dsw-elevation-prominent);
+}
+
+.diff {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  font-family: var(--dsw-font-mono);
+  font-size: var(--dsw-text-xs);
+  line-height: var(--dsw-leading-normal);
+  white-space: pre-wrap;
+}
+
+.added {
+  color: var(--dsw-text-success);
+}
+
+.removed {
+  color: var(--dsw-text-danger);
+  text-decoration: line-through;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--dsw-space-2);
+}
+
+.quiet {
+  opacity: 0.5;
+}
+
+.error {
+  color: var(--dsw-text-danger);
+  font-size: var(--dsw-text-xs);
+}

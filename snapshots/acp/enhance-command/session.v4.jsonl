@@ -1,0 +1,8 @@
+{"type":"session","version":4,"id":"{{session:1}}","createdAt":1790086909848,"cwd":"{{cwd}}","isSeeded":false,"delegationDepth":0}
+{"type":"permission/preset","data":{"preset":"danger-full-access"}}
+{"type":"sandbox/mode","data":{"mode":"danger-full-access"}}
+{"type":"approval/policy","data":{"policy":"never"}}
+{"type":"command/run","data":{"commandId":"{{command:1}}","name":"enhance","args":" Add a settings page with save and cancel buttons.","source":{"kind":"user"}}}
+{"type":"command/done","data":{"commandId":"{{command:1}}","kind":"success","text":"Objective:\nAdd a settings page with save and cancel buttons.\n\nConstraints:\n- [principle:modularity] Prefer modular components.\n\nAcceptance criteria:\n- [ ] Add a settings page with save and cancel buttons.\n\nVerification:\n- Confirm every acceptance criterion is satisfied before reporting completion."}}
+{"type":"command/run","data":{"commandId":"{{command:2}}","name":"enhance","args":"","source":{"kind":"user"}}}
+{"type":"command/done","data":{"commandId":"{{command:2}}","kind":"error","text":"Usage: /enhance [<depth>] <draft> (depths: spec)"}}

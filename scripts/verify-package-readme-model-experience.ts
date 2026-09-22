@@ -61,6 +61,10 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/experimental/browser-use-runtime': { kind: 'indirect', reason: 'Browser providers call the library to own resources and expose upstream MCP tools.' },
   'packages/computer-use/computer-use': { kind: 'none', reason: 'The registry only reserves provider names; providers own all model-facing tools and guidance.' },
   'packages/document/office-to-pdf': { kind: 'none', reason: 'The provider returns PDF bytes without constructing model input.' },
+  'packages/interaction/enhance': { kind: 'none', reason: 'Pure structuring functions; rendered text reaches a model only when a person submits it as ordinary input.' },
+  'packages/interaction/command-enhance': { kind: 'none', reason: 'The command runs no model call; its log-only lifecycle and returned text stay out of model context until a person submits them.' },
+  'packages/interaction/enhance-runtime': { kind: 'none', reason: 'The preview service runs no model call and writes no session events; rendered text reaches a model only on human submission.' },
+  'packages/client/ui-enhance': { kind: 'none', reason: 'Browser presentation over the enhance Remote; the accepted draft reaches a model only when the person sends it.' },
 
   'packages/credentials/deepseek-account': { kind: 'none', reason: 'Account authorization registers no model context or tools; credentials affect HTTP authentication only.' },
   'packages/credentials/deepseek-account-platform': { kind: 'none', reason: 'Account authorization registers no model context or tools; credentials affect HTTP authentication only.' },
