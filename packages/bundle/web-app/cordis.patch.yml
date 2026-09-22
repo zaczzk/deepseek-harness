@@ -421,6 +421,16 @@
 
     - id: ui-decisions
       name: '@deepseek-ai/dsh-client-ui-decisions'
+    # Token usage: the Session-header meter over the token-meter projections.
+    # Two halves: the host polls the provider's Token Plan report (console
+    # session cookie via `session`/`sessionEnv`) and serves it at
+    # /dsh/token-plan/usage; the browser half renders the meter and shows the
+    # Week/Month rows only when the report carries them.
+    - id: token-plan-usage
+      name: '@deepseek-ai/dsh-host-token-plan-usage'
+
+    - id: ui-usage
+      name: '@deepseek-ai/dsh-client-ui-usage'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #

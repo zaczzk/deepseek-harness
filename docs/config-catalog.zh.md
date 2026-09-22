@@ -1347,6 +1347,32 @@ export interface Config {
 
 来源： [`packages/host/product-telemetry-otel/src/index.ts:37`](../packages/host/product-telemetry-otel/src/index.ts)
 
+<a id="deepseek-aidsh-host-token-plan-usage"></a>
+
+## `@deepseek-ai/dsh-host-token-plan-usage`
+
+需要： `webServer` · `connection`
+
+```ts config-catalog
+/** Token-plan usage reader configuration. */
+export interface Config {
+  /** Console origin serving the Token Plan usage endpoint. */
+  readonly origin: Volatile<string>
+  /** Stored console session cookie value; empty keeps the reader idle. */
+  readonly session: Volatile<string>
+  /** Environment variable holding the session cookie when `session` is empty. */
+  readonly sessionEnv: Volatile<string>
+  /** Interval between usage polls, in milliseconds. */
+  readonly pollIntervalMs: Volatile<number>
+  /** Per-request deadline for one usage poll, in milliseconds. */
+  readonly timeoutMs: Volatile<number>
+}
+```
+
+依赖： `Volatile`（`@deepseek-ai/cordis`）
+
+来源： [`packages/host/token-plan-usage/src/index.ts:28`](../packages/host/token-plan-usage/src/index.ts)
+
 <a id="deepseek-aidsh-host-webserver"></a>
 
 ## `@deepseek-ai/dsh-host-webserver`
@@ -4156,6 +4182,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-tool`（[`packages/client/ui-tool/src/index.ts`](../packages/client/ui-tool/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-trajectory`（[`packages/client/ui-trajectory/src/index.ts`](../packages/client/ui-trajectory/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-usage`（[`packages/client/ui-usage/src/index.ts`](../packages/client/ui-usage/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-user-questions`（[`packages/client/ui-user-questions/src/index.ts`](../packages/client/ui-user-questions/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-workflow-run`（[`packages/client/ui-workflow-run/src/index.ts`](../packages/client/ui-workflow-run/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-workspace`（[`packages/client/ui-workspace/src/index.ts`](../packages/client/ui-workspace/src/index.ts)）

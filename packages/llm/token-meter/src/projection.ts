@@ -18,6 +18,31 @@ export interface TokenUsageProjection {
 }
 
 /**
+ * One billed provider/model route's cumulative usage in the same disjoint
+ * buckets as {@link TokenUsageProjection}.
+ *
+ * An empty `provider` and `model` name the unattributed route: usage whose
+ * settlement carried no route claim and followed no request header.
+ */
+export interface ModelTokenUsage extends TokenUsageProjection {
+  provider: string
+  model: string
+}
+
+/**
+ * Cumulative usage of a complete session log, split by the billed
+ * provider/model route.
+ *
+ * Rows appear in first-billed order and cover every counted sample, so their
+ * buckets sum to the {@link TokenUsageProjection} totals of the same log plus
+ * each `compaction/summary` call's own usage (which `tokenUsage` does not
+ * count).
+ */
+export interface TokenUsageByModelProjection {
+  models: readonly ModelTokenUsage[]
+}
+
+/**
  * Approximate context occupancy for a status display.
  *
  * The fields, when present, are deliberately NOT one atomic request
@@ -69,6 +94,8 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionMap {
     /** Provider-reported usage accumulated across the complete durable log. */
     tokenUsage: TokenUsageProjection
+    /** Provider-reported usage accumulated per billed provider/model route. */
+    tokenUsageByModel: TokenUsageByModelProjection
     /** Newest request pressure paired with the newest known route capacity. */
     contextPressure: ContextPressureProjection
     /** Heuristic system/tools/message composition of the next request. */
