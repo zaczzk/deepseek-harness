@@ -61,7 +61,7 @@ The standard `useResource` hook gives each document's metadata — its version �
 
 - [Project register utilities](../../util/project-register/README.md) — the register grammar, diagram extraction, and fingerprints this view shares with the recorder.
 - [Workspace file service](../../api/workspace-files/README.md) — the bounded reads and change feeds behind `useResource<'file'>`.
-- [Conversation reference](../../docs/subsystems/conversation.md) — how conversation view tabs register and render.
+- [Conversation reference](../../../docs/subsystems/conversation.md) — how conversation view tabs register and render.
 
 -----
 

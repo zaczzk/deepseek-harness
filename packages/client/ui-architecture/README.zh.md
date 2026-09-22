@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 用本包在会话中直接查看工作区当前的架构图。`architecture` 会话视图通过 `workspaceFiles` Remote 读取 `ARCHITECTURE.md`，用 Mermaid 渲染其中第一个 `mermaid` 代码块，并在文件名旁显示 `DECISIONS.md` 最新里程碑记录的图形状态。被里程碑记录为 stale 的架构图会在画布上方保留一行操作提示，直到其源码发生变化。
 
@@ -18,7 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与待办](#known-limitations-and-deferred-work)
-- [维护者笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -61,7 +61,7 @@ kind: "package-reference"
 
 - [项目登记工具](../../util/project-register/README.zh.md) —— 本视图与记录器共享的登记语法、架构图提取与指纹。
 - [工作区文件服务](../../api/workspace-files/README.zh.md) —— `useResource<'file'>` 背后的有界读取与变更推送。
-- [Conversation 参考](../../docs/subsystems/conversation.md) —— 会话视图标签页如何注册与渲染。
+- [Conversation 参考](../../../docs/subsystems/conversation.zh.md) —— 会话视图标签页如何注册与渲染。
 
 -----
 
@@ -83,7 +83,7 @@ kind: "package-reference"
 - **无平移缩放** —— SVG 缩放至画布宽度并纵向滚动。
 
 <a id="dev-note"></a>
-### 维护者笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>

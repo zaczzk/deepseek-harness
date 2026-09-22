@@ -20,13 +20,13 @@ const MILESTONE = formatRegisterRow({
   status: 'done', diagram: { flag: 'stale', fingerprint: diagramFingerprint(DIAGRAM) },
 })
 
-function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>): UseResource {
-  return () => ({
+function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>) {
+  return (() => ({
     status: 'live',
     value: { absolutePath: '/ws/x.md', version: 'v1' },
     failure: undefined,
     ...overrides,
-  }) as ResourceSnapshot<WorkspaceFileStat>
+  })) as UseResource
 }
 
 interface BenchOptions {
@@ -129,6 +129,17 @@ describe('ArchitectureView', () => {
     expect(b.getByText(en['error.read'])).toBeTruthy()
     fireEvent.click(b.getByText(en['retry']))
     expect(b.loadArchitecture).toHaveBeenCalledWith('v2')
+  })
+
+  it('retries a failed read with no observed version', () => {
+    const b = bench({
+      meta: { status: 'failed', value: undefined },
+      seed: (state) => {
+        state.architecture = { status: 'failed', failureCode: 'gateway/internal' }
+      },
+    })
+    fireEvent.click(b.getByText(en['retry']))
+    expect(b.loadArchitecture).toHaveBeenCalledWith('')
   })
 
   it('reports a document with no diagram', () => {

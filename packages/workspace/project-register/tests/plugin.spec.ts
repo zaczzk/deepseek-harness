@@ -143,6 +143,35 @@ describe('project-register', () => {
     })
   })
 
+  it('names a non-Error write failure in its warning', async () => {
+    const cwd = await scratchDir('dsh-project-register-string-', cleanups)
+    const { ctx } = await boot()
+    const warn = vi.spyOn(ctx.logger, 'warn').mockImplementation(() => undefined)
+    vi.spyOn(ctx.fs, 'writeText').mockRejectedValue('read-only')
+    const session = ctx.sessions.create(SessionId('string'), { meta: { cwd } })
+    session.append('todo/write', { todos: [todo('milestone: Stringy', 'in_progress')] })
+    session.append('todo/write', { todos: [todo('milestone: Stringy', 'completed')] })
+    await vi.waitFor(() => {
+      const own = warn.mock.calls.map(call => String(call[0])).filter(message => message.startsWith('project-register:'))
+      expect(own).toEqual([expect.stringContaining('read-only')])
+    })
+  })
+
+  it('ignores other session events and whitespace goal objectives', async () => {
+    const cwd = await scratchDir('dsh-project-register-skip2-', cleanups)
+    const { ctx } = await boot()
+    const session = ctx.sessions.create(SessionId('skip2'), { meta: { cwd } })
+    session.append('turn/start', { turn: 1 })
+    ctx.emit('goal/changed', {
+      agent: { session },
+      change: { operation: 'complete', ref: { id: 'goal-2', revision: 1 }, goal: { objective: '   ' } },
+    } as never)
+    session.append('todo/write', { todos: [todo('milestone: Late', 'in_progress')] })
+    session.append('todo/write', { todos: [todo('milestone: Late', 'completed')] })
+    const rows = await settleRows(cwd, 'Late')
+    expect(rows.map(row => row.title)).toEqual(['Late'])
+  })
+
   it('rejects an empty milestoneMarker at load', async () => {
     const ctx = new Context()
     cleanups.push(() => ctx.fiber.dispose())

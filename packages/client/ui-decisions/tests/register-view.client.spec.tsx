@@ -26,13 +26,13 @@ const MILESTONE: RegisterRow = {
 }
 const REGISTER_TEXT = `${formatRegisterRow(DECISION)}\n${formatRegisterRow(MILESTONE)}\n`
 
-function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>): UseResource {
-  return () => ({
+function resource(overrides: Partial<ResourceSnapshot<WorkspaceFileStat>>) {
+  return (() => ({
     status: 'live',
     value: { absolutePath: '/ws/DECISIONS.md', version: 'v1' },
     failure: undefined,
     ...overrides,
-  }) as ResourceSnapshot<WorkspaceFileStat>
+  })) as UseResource
 }
 
 type StoreInstance = ReturnType<ReturnType<typeof createRegisterStore>['create']>
@@ -151,6 +151,19 @@ describe('DecisionsView', () => {
 
     expect(b.loadRegister).toHaveBeenCalledTimes(1)
     expect(b.loadRegister).toHaveBeenCalledWith('v2')
+  })
+
+  it('retries a failed read with no observed version', () => {
+    const b = bench({
+      meta: { status: 'failed', value: undefined },
+      seed: (instance: StoreInstance) => {
+        instance.actions.failed('gateway/internal')
+      },
+    })
+
+    fireEvent.click(b.getByText(en.retry))
+
+    expect(b.loadRegister).toHaveBeenCalledWith('')
   })
 
   it('reports a ready register with no rows', () => {

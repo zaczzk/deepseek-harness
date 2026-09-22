@@ -422,10 +422,6 @@
     - id: ui-decisions
       name: '@deepseek-ai/dsh-client-ui-decisions'
 
-    # Token usage: the Session-header meter over the token-meter projections.
-    - id: ui-usage
-      name: '@deepseek-ai/dsh-client-ui-usage'
-
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:

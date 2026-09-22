@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 用本包在会话中直接查看工作区的重大决策登记表。`decisions` 会话视图通过 `workspaceFiles` Remote 读取 `DECISIONS.md`，按最新在前渲染其决策登记表：每个决策或里程碑一行，里程碑行的 Diagram 列显示其记录的图形状态，并标记出最新的里程碑行。
 
@@ -18,7 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与待办](#known-limitations-and-deferred-work)
-- [维护者笔记](#dev-note)
+- [开发备注](#dev-note)
 
 -----
 
@@ -60,7 +60,7 @@ kind: "package-reference"
 
 - [项目登记工具](../../util/project-register/README.zh.md) —— 本视图与记录器共享的登记语法与图形证据。
 - [工作区文件服务](../../api/workspace-files/README.zh.md) —— `useResource<'file'>` 背后的有界读取与变更推送。
-- [Conversation 参考](../../docs/subsystems/conversation.md) —— 会话视图标签页如何注册与渲染。
+- [Conversation 参考](../../../docs/subsystems/conversation.zh.md) —— 会话视图标签页如何注册与渲染。
 
 -----
 
@@ -82,7 +82,7 @@ kind: "package-reference"
 - **仅按文件顺序** —— 各行按文件位置最新在前显示；表格不按日期或状态排序。
 
 <a id="dev-note"></a>
-### 维护者笔记
+### 开发备注
 
 <details>
 <summary>维护者工作上下文 —— 点击展开</summary>

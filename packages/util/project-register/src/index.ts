@@ -68,26 +68,30 @@ function cells(line: string): string[] | undefined {
   return trimmed.slice(1, -1).split('|').map(cell => cell.trim())
 }
 
+/** The exactly-six trimmed cells of one register table line, or undefined for any other line. */
+function rowCells(line: string): readonly [string, string, string, string, string, string] | undefined {
+  const parts = cells(line)
+  return parts === undefined || parts.length !== 6
+    ? undefined
+    : parts as [string, string, string, string, string, string]
+}
+
 /** The diagram evidence of one Diagram cell, or undefined for a malformed cell. */
 function diagramMark(cell: string): DiagramMark | null | undefined {
   if (EMPTY_DIAGRAM_CELLS.includes(cell)) return null
   const match = DIAGRAM_CELL.exec(cell)
   if (match === null) return undefined
-  const flag = match[1] as DiagramFlag | undefined
-  if (flag === undefined || !DIAGRAM_FLAGS.includes(flag)) return undefined
+  const flag = match[1] as DiagramFlag
+  if (!DIAGRAM_FLAGS.includes(flag)) return undefined
   return { flag, fingerprint: match[2] ?? null }
 }
 
 /** One register row parsed from a table line, or undefined for any other line. */
 function parseRow(line: string): RegisterRow | undefined {
-  const parts = cells(line)
-  if (parts === undefined || parts.length !== 6) return undefined
-  const id = parts[0] ?? ''
-  const date = parts[1] ?? ''
-  const kind = parts[2] ?? ''
-  const title = parts[3] ?? ''
-  const status = parts[4] ?? ''
-  const diagram = diagramMark(parts[5] ?? '')
+  const parts = rowCells(line)
+  if (parts === undefined) return undefined
+  const [id, date, kind, title, status, diagramCell] = parts
+  const diagram = diagramMark(diagramCell)
   if (!ID_CELL.test(id) || !DATE_CELL.test(date) || title === '' || diagram === undefined) return undefined
   if (!REGISTER_KINDS.includes(kind as RegisterKind)) return undefined
   if (!REGISTER_STATUSES.includes(status as RegisterStatus)) return undefined
@@ -146,12 +150,12 @@ export function appendRegisterRow(text: string, row: RegisterRow): string {
   let rowAnchor = -1
   let separatorAnchor = -1
   let headerAnchor = -1
-  for (let index = 0; index < lines.length; index += 1) {
-    const parts = cells(lines[index] ?? '')
-    if (parts === undefined || parts.length !== 6) continue
-    if (ID_CELL.test(parts[0] ?? '')) rowAnchor = index
-    else if (isSeparator(lines[index] ?? '')) separatorAnchor = index
-    else if ((parts[0] ?? '') === 'ID') headerAnchor = index
+  for (const [index, line] of lines.entries()) {
+    const parts = rowCells(line)
+    if (parts === undefined) continue
+    if (ID_CELL.test(parts[0])) rowAnchor = index
+    else if (isSeparator(line)) separatorAnchor = index
+    else if (parts[0] === 'ID') headerAnchor = index
   }
   const anchor = rowAnchor >= 0 ? rowAnchor : separatorAnchor >= 0 ? separatorAnchor : headerAnchor
   if (anchor >= 0) {
@@ -173,8 +177,8 @@ export function nextRegisterId(text: string, kind: RegisterKind): string {
   const prefix = kind === 'milestone' ? 'M' : 'D'
   let next = 1
   for (const line of text.split('\n')) {
-    const parts = cells(line)
-    const match = parts === undefined ? null : ID_CELL.exec(parts[0] ?? '')
+    const first = cells(line)?.[0]
+    const match = first === undefined ? null : ID_CELL.exec(first)
     if (match === null || match[1] !== prefix) continue
     const ordinal = Number(match[2])
     if (Number.isSafeInteger(ordinal) && ordinal >= next) next = ordinal + 1
@@ -203,11 +207,10 @@ export function latestMilestone(rows: readonly RegisterRow[]): RegisterRow | und
  */
 export function diagramSource(markdown: string): string | undefined {
   const lines = markdown.split('\n')
-  for (let index = 0; index < lines.length; index += 1) {
-    if (!/^```mermaid\s*$/.test((lines[index] ?? '').trim())) continue
+  for (const [index, opener] of lines.entries()) {
+    if (!/^```mermaid\s*$/.test(opener.trim())) continue
     const body: string[] = []
-    for (let scan = index + 1; scan < lines.length; scan += 1) {
-      const line = lines[scan] ?? ''
+    for (const line of lines.slice(index + 1)) {
       if (line.trim() === '```') {
         const source = body.join('\n').trim()
         return source === '' ? undefined : source
