@@ -445,6 +445,7 @@
     { "path": "./packages/boot/plugin-manager" },
     { "path": "./packages/llm/plugin-package-inventory-deepseek" },
     { "path": "./packages/host/webserver" },
+    { "path": "./packages/host/token-plan-usage" },
     { "path": "./packages/sdk/client" },
     { "path": "./packages/sdk/protocol" },
     { "path": "./packages/lsp/lsp" },
