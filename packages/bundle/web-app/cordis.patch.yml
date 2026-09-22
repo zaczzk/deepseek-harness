@@ -314,6 +314,14 @@
     - id: workspace-changes
       name: '@deepseek-ai/dsh-workspace-changes'
 
+    # Milestone enforcement: records every major milestone (completed goal,
+    # completed milestone-tagged todo) as a DECISIONS.md register row carrying
+    # the architecture diagram's state at that moment.
+    - id: project-register
+      name: '@deepseek-ai/dsh-project-register'
+      config:
+        milestoneMarker: 'milestone:'
+
 
     - id: ui-workspace
       name: '@deepseek-ai/dsh-client-ui-workspace'
@@ -405,6 +413,18 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
+
+    # Project tabs: the current ARCHITECTURE.md diagram and the DECISIONS.md
+    # major-decision register as conversation views.
+    - id: ui-architecture
+      name: '@deepseek-ai/dsh-client-ui-architecture'
+
+    - id: ui-decisions
+      name: '@deepseek-ai/dsh-client-ui-decisions'
+
+    # Token usage: the Session-header meter over the token-meter projections.
+    - id: ui-usage
+      name: '@deepseek-ai/dsh-client-ui-usage'
 
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
