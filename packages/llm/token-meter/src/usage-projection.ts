@@ -3,12 +3,16 @@
  */
 
 import { z } from 'zod'
-import { lastAssistantStreamChunk, type TokenUsage } from '@deepseek-ai/dsh-llm'
+import { lastAssistantStreamChunk, type AssistantMessage, type TokenUsage } from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-llm-retry/types'
 import { SessionSeq } from '@deepseek-ai/dsh-session'
 import type { SessionEvent } from '@deepseek-ai/dsh-session'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
-import type { ContextPressureProjection, TokenUsageProjection } from './projection.ts'
+import type {
+  ContextPressureProjection,
+  ModelTokenUsage,
+  TokenUsageProjection,
+} from './projection.ts'
 import { foldSurfaceProjection } from './surface-projection.ts'
 
 const zeroBuckets = (): TokenUsageProjection => ({
@@ -42,12 +46,20 @@ const addReplacing = (
   cacheWriteTokens: totals.cacheWriteTokens - (previous?.cacheWriteTokens ?? 0) + next.cacheWriteTokens,
 })
 
-const projectionSchema = z.object({
+const bucketsShape = {
   uncachedInputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(),
   cacheReadTokens: z.number().int().nonnegative(),
   cacheWriteTokens: z.number().int().nonnegative(),
-}).strict()
+}
+
+const projectionSchema = z.object(bucketsShape).strict()
+
+const routeSchema = z.object({ provider: z.string(), model: z.string() }).strict()
+
+const modelUsageSchema = z.object({ provider: z.string(), model: z.string(), ...bucketsShape }).strict()
+
+const modelUsageViewSchema = z.object({ models: z.array(modelUsageSchema) }).strict()
 
 /**
  * The token-usage unit's state schema — the one definition of the state
@@ -88,6 +100,7 @@ function usageOf(event: SessionEvent): TokenUsage | undefined {
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     tokenUsage: TokenUsageState
+    tokenUsageByModel: TokenUsageByModelState
     contextPressure: ContextPressureState
   }
 }
@@ -148,6 +161,141 @@ export const tokenUsageProjectionDefinition = {
   },
   wire: { viewSchema: projectionSchema, view: state => state.totals },
 } satisfies ProjectionDefinition<'tokenUsage', TokenUsageState>
+
+/** Route claim of one billed sample. */
+interface UsageRoute {
+  provider: string
+  model: string
+}
+
+/** The route every sample without a usable claim is credited to. */
+const UNATTRIBUTED: UsageRoute = { provider: '', model: '' }
+
+/** Collapse an empty provider or model into {@link UNATTRIBUTED}. */
+const routeOf = (provider: string, model: string): UsageRoute =>
+  provider.length > 0 && model.length > 0 ? { provider, model } : UNATTRIBUTED
+
+const sameRoute = (a: UsageRoute, b: UsageRoute): boolean => a.provider === b.provider && a.model === b.model
+
+/** The route claim an assistant settlement carries on its message source. */
+function messageRoute(message: AssistantMessage): UsageRoute {
+  const { provider, model } = message.source
+  return routeOf(provider, model)
+}
+
+const modelBuckets = (row: ModelTokenUsage): TokenUsageProjection => ({
+  uncachedInputTokens: row.uncachedInputTokens,
+  outputTokens: row.outputTokens,
+  cacheReadTokens: row.cacheReadTokens,
+  cacheWriteTokens: row.cacheWriteTokens,
+})
+
+/**
+ * Debit the replaced sample's route row and credit `route` with `next`,
+ * appending the row on its first billed sample. Row order is first-billed.
+ */
+function creditModels(
+  models: ModelTokenUsage[],
+  route: UsageRoute,
+  next: TokenUsageProjection,
+  previous: { route: UsageRoute; buckets: TokenUsageProjection } | undefined,
+): ModelTokenUsage[] {
+  const debited = previous === undefined
+    ? models
+    : models.map(row => sameRoute(row, previous.route)
+      ? { ...row, ...addReplacing(modelBuckets(row), previous.buckets, zeroBuckets()) }
+      : row)
+  return debited.some(row => sameRoute(row, route))
+    ? debited.map(row => sameRoute(row, route)
+      ? { ...row, ...addReplacing(modelBuckets(row), undefined, next) }
+      : row)
+    : [...debited, { ...route, ...next }]
+}
+
+const tokenUsageByModelStateSchema = z.object({
+  view: modelUsageViewSchema,
+  last: z.object({
+    turn: z.number().int().nonnegative(),
+    step: z.number().int().nonnegative(),
+    route: routeSchema,
+    buckets: projectionSchema,
+  }).strict().nullable(),
+  requestRoute: routeSchema.nullable(),
+}).strict()
+
+type TokenUsageByModelState = z.infer<typeof tokenUsageByModelStateSchema>
+
+/**
+ * Token-meter's per-route usage projection unit.
+ *
+ * It counts the same attempt samples as `tokenUsage` (a final assistant
+ * message replaces streaming usage from the same turn/step attempt, and
+ * `llm/retry-started` ends that replacement scope so a retry adds a second
+ * billed attempt), and additionally counts each `compaction/summary`
+ * summarize call's own usage. Each sample is credited to its settlement's
+ * message source, or — for `assistant/attempt` and compaction — to the
+ * latest `request/header` route or the summary's own route claim.
+ */
+export const tokenUsageByModelProjectionDefinition = {
+  key: 'tokenUsageByModel',
+  stateVersion: 1,
+  stateSchema: tokenUsageByModelStateSchema,
+  init: (): TokenUsageByModelState => ({ view: { models: [] }, last: null, requestRoute: null }),
+  apply: (state, event) => {
+    if (event.type === 'request/header') {
+      const { provider, model } = event.data.header.config
+      const route = routeOf(provider, model)
+      return state.requestRoute !== null && sameRoute(state.requestRoute, route)
+        ? state
+        : { ...state, requestRoute: route }
+    }
+    if (event.type === 'llm/retry-started') {
+      return state.last !== null && state.last.turn === event.data.turn && state.last.step === event.data.step
+        ? { ...state, last: null }
+        : state
+    }
+    if (event.type === 'compaction/summary') {
+      const sample = event.data.usage
+      return sample === undefined
+        ? state
+        : {
+          ...state,
+          view: { models: creditModels(state.view.models, routeOf(event.data.provider, event.data.model), bucketsFrom(sample), undefined) },
+        }
+    }
+    if (event.type !== 'assistant/message' && event.type !== 'assistant/attempt') return state
+    const sample = usageOf(event)
+    if (sample === undefined) return state
+    const route = event.type === 'assistant/message'
+      ? messageRoute(event.data.message)
+      : state.requestRoute ?? UNATTRIBUTED
+    const previous = state.last !== null
+      && state.last.turn === event.data.turn
+      && state.last.step === event.data.step
+      ? state.last
+      : undefined
+    const buckets = bucketsFrom(sample)
+    if (previous !== undefined && sameRoute(previous.route, route) && bucketsEqual(previous.buckets, buckets)) {
+      return state
+    }
+    return {
+      ...state,
+      view: {
+        models: creditModels(
+          state.view.models,
+          route,
+          buckets,
+          previous === undefined ? undefined : { route: previous.route, buckets: previous.buckets },
+        ),
+      },
+      last: { turn: event.data.turn, step: event.data.step, route, buckets },
+    }
+  },
+  wire: {
+    viewSchema: modelUsageViewSchema,
+    view: state => state.view,
+  },
+} satisfies ProjectionDefinition<'tokenUsageByModel', TokenUsageByModelState>
 
 /**
  * Token-meter's context-occupancy projection unit.
