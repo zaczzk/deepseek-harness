@@ -1,0 +1,129 @@
+# DeepSeek Harness Prompt Enhancement Rubric
+# Defines design principles, application streams (Prototype, Solo, Shared),
+# and validation limits for the deterministic prompt-to-task pipeline.
+
+principles:
+  - id: seam-cleanliness
+    text: "Enforce complete Capability Seams: Service Definition, Service Provider, and Consumer roles with explicit interfaces."
+  - id: fail-loud
+    text: "Misconfigurations, missing services, and boundary violations must fail loud at initialization with actionable messages."
+  - id: zero-trust-security
+    text: "Enforce least-privilege sandboxing, loopback origin fences (127.0.0.1), and secure credential handling via OS keychain."
+  - id: locale-owned-copy
+    text: "All UI text, alerts, and labels must be routed through typed locale dictionaries (en/zh); never hardcode copy."
+  - id: atomic-goal-emission
+    text: "Every approved task must emit a bounded objective and verifiable completion criteria through the goal seam."
+  - id: explicit-boundaries
+    text: "Defaulting must be an explicit resolve(request): Spec step in the owning implementation, never hidden in run()."
+  - id: prototype-velocity
+    text: "Prototypes must favor in-memory state, mock services, and rapid visual feedback over ceremony."
+  - id: solo-resilience
+    text: "Solo applications must ensure durable local persistence (SQLite WAL / schema versioning), offline resilience, and robust error recovery."
+  - id: shared-robustness
+    text: "Shared applications must enforce multi-tenant isolation, RBAC/ABAC auth, transactional data integrity, and structured audit logs."
+
+skipPatterns: []
+
+limits:
+  minDraftCharacters: 10
+  foldBelowCharacters: 30
+  splitAboveCharacters: 2000
+  maxExamples: 3
+
+depths:
+  prototype:
+    - objective
+    - context
+    - constraints
+    - acceptance
+    - goal
+  solo:
+    - objective
+    - context
+    - constraints
+    - acceptance
+    - verification
+    - goal
+    - todos
+  shared:
+    - objective
+    - context
+    - constraints
+    - acceptance
+    - verification
+    - doneLooksLike
+    - goal
+    - todos
+
+defaultDepth: solo
+outputLanguage: auto
+
+examples:
+  - input: "Build a prototype markdown previewer widget with live render."
+    sections:
+      objective: "Build a prototype markdown previewer widget with live render."
+      context: "Speed and visual validation are the primary goals. Keep all state in memory and render markdown as text changes."
+      constraints:
+        - "[principle:prototype-velocity] Favor in-memory state and instant visual feedback over formal persistence."
+        - "[principle:seam-cleanliness] Keep the editor component decoupled from the markdown rendering pipeline."
+      acceptance:
+        - "Typing markdown in the left pane updates the preview pane in real time."
+        - "Basic markdown syntax (headings, code blocks, lists) renders with proper formatting."
+      goal:
+        objective: "Build a prototype markdown previewer widget with live render."
+        completionCriteria:
+          - "Live split-pane markdown preview renders input changes without lag."
+          - "Component mounts and runs cleanly in the live preview tab."
+
+  - input: "Build a solo personal finance tracker with bank CSV import and SQLite persistence."
+    sections:
+      objective: "Build a solo personal finance tracker with bank CSV import and SQLite persistence."
+      context: "Targeted as a local desktop utility. Must preserve transactions reliably in SQLite and handle dirty CSV imports."
+      constraints:
+        - "[principle:solo-resilience] Use durable SQLite with WAL mode and explicit SCHEMA_VERSION migration."
+        - "[principle:zero-trust-security] Bind to loopback 127.0.0.1; restrict filesystem access to user-selected CSV files."
+        - "[principle:fail-loud] Malformed CSV records must be flagged and surfaced with line numbers, not silently dropped."
+      acceptance:
+        - "Bank CSV files parse in a background worker and import into transactions table."
+        - "Duplicate transactions with identical date, payee, and amount are detected and skipped."
+        - "Monthly spending chart renders category breakdowns accurately."
+      verification:
+        - "Confirm every acceptance criterion is satisfied before reporting completion."
+      goal:
+        objective: "Build a solo personal finance tracker with bank CSV import and SQLite persistence."
+        completionCriteria:
+          - "Bank CSV parser imports records and deduplicates entries."
+          - "SQLite database persists data across application restarts."
+          - "Spending trends chart and transaction table display accurately."
+      todos:
+        - "Implement CSV parser and transaction deduplication logic."
+        - "Create SQLite schema with monotonic versioning."
+        - "Build the responsive KPI and chart dashboard UI."
+
+  - input: "Build a shared team task manager with role-based access and audit logging."
+    sections:
+      objective: "Build a shared team task manager with role-based access and audit logging."
+      context: "Multi-user enterprise environment requiring strict authorization, concurrency control, and auditability."
+      constraints:
+        - "[principle:shared-robustness] Implement RBAC authorization, transactional integrity, and append-only audit logging."
+        - "[principle:zero-trust-security] Enforce JWT authentication with rotation and strict CORS origin validation."
+        - "[principle:locale-owned-copy] All UI text and notifications must route through typed locale dictionaries."
+      acceptance:
+        - "Admins can manage projects, assign roles, and inspect the audit log."
+        - "Members can only update tasks assigned to them or their team."
+        - "Concurrent edits on the same task detect conflicts via optimistic concurrency tokens."
+      verification:
+        - "Confirm every acceptance criterion is satisfied before reporting completion."
+      doneLooksLike:
+        - "Role-based access rules verified by automated permission tests."
+        - "Report each criterion as <criterion>: met or unmet."
+      goal:
+        objective: "Build a shared team task manager with role-based access and audit logging."
+        completionCriteria:
+          - "RBAC middleware enforces permissions on all protected routes."
+          - "Optimistic locking prevents lost updates during concurrent edits."
+          - "Audit log records all status changes with actor timestamp."
+      todos:
+        - "Define RBAC permissions and JWT auth middleware."
+        - "Set up relational schema with migration rollback scripts."
+        - "Implement optimistic concurrency control on task updates."

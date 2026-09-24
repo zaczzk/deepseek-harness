@@ -3,7 +3,7 @@ import { EnhanceController } from '../src/client/enhance-controller.ts'
 import { enhanceDoubles } from './enhance-doubles.client.ts'
 
 /** The settled closed state every abort leaves behind. */
-const CLOSED = { open: false, status: 'idle', original: '', text: '', emitGoal: false }
+const CLOSED = { open: false, status: 'idle', original: '', text: '', emitGoal: false, streamMode: 'solo' }
 
 /** Manual animation-frame queue so each test owns its painted frames. */
 let frames: Array<() => void> = []
@@ -175,7 +175,14 @@ describe('EnhanceController', () => {
     b.streams[0]!.push('partial')
     b.streams[0]!.fail(new Error('socket down'))
     await flush()
-    expect(controller.state.getSnapshot()).toEqual({ open: true, status: 'error', original: 'original draft', text: '', emitGoal: false })
+    expect(controller.state.getSnapshot()).toEqual({
+      open: true,
+      status: 'error',
+      original: 'original draft',
+      text: '',
+      emitGoal: false,
+      streamMode: 'solo',
+    })
     controller.accept()
     await flush()
     expect(b.writes).toEqual([])
@@ -190,5 +197,24 @@ describe('EnhanceController', () => {
     await flush()
     runFrame()
     expect(controller.state.getSnapshot()).toEqual(CLOSED)
+  })
+
+  it('switches streamMode and passes it to stream requests', () => {
+    const b = enhanceDoubles('original draft')
+    const controller = new EnhanceController(b.deps)
+    expect(controller.state.getSnapshot().streamMode).toBe('solo')
+    controller.setStreamMode('prototype')
+    expect(controller.state.getSnapshot().streamMode).toBe('prototype')
+    expect(b.streams).toHaveLength(0)
+
+    controller.request()
+    expect(b.streams).toHaveLength(1)
+    expect(b.streamCalls[0]).toEqual({ draft: 'original draft', depth: 'prototype' })
+
+    // Switching while open re-requests immediately
+    controller.setStreamMode('shared')
+    expect(controller.state.getSnapshot().streamMode).toBe('shared')
+    expect(b.streams).toHaveLength(2)
+    expect(b.streamCalls[1]).toEqual({ draft: 'original draft', depth: 'shared' })
   })
 })

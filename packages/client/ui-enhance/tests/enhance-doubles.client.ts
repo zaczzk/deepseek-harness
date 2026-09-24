@@ -90,6 +90,14 @@ export function streamDouble(): StreamDouble {
   }
 }
 
+/** Stream request call facts recorded by EnhanceDoubles. */
+export interface StreamCall {
+  /** Draft text passed to stream. */
+  readonly draft: string
+  /** Depth/streamMode passed to stream. */
+  readonly depth?: string | undefined
+}
+
 /** Recorded collaborators and live controls of one {@link enhanceDoubles} bench. */
 export interface EnhanceDoubles {
   /** The dependency face under test. */
@@ -98,6 +106,8 @@ export interface EnhanceDoubles {
   readonly writes: string[]
   /** Streams opened through `deps.stream`, in request order. */
   readonly streams: StreamDouble[]
+  /** Recorded stream call arguments. */
+  readonly streamCalls: StreamCall[]
   /** @returns how many times focus was restored to the composer. */
   focusCount(): number
   /** Deliver one draft keystroke: revision bump plus its notification. */
@@ -118,13 +128,15 @@ export interface EnhanceDoubles {
 export function enhanceDoubles(initial: string): EnhanceDoubles {
   const writes: string[] = []
   const streams: StreamDouble[] = []
+  const streamCalls: StreamCall[] = []
   const watchers = new Set<() => void>()
   const draft = { text: initial, rev: 1 }
   let focusCount = 0
   let unwatchCount = 0
   return {
     deps: {
-      stream: () => {
+      stream: (text: string, depth?: string) => {
+        streamCalls.push({ draft: text, depth })
         const double = streamDouble()
         streams.push(double)
         return double.stream
@@ -145,6 +157,7 @@ export function enhanceDoubles(initial: string): EnhanceDoubles {
     },
     writes,
     streams,
+    streamCalls,
     focusCount: () => focusCount,
     keystroke: () => {
       draft.rev += 1

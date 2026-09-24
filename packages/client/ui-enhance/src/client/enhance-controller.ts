@@ -34,6 +34,9 @@ export interface EnhanceGoalDraft {
   readonly completionCriteria: readonly string[]
 }
 
+/** Available architecture streams. */
+export type EnhanceStreamMode = 'prototype' | 'solo' | 'shared'
+
 /** Published preview state of one composer's Enhance flow. */
 export interface EnhanceState {
   /** Whether the preview popover is open. */
@@ -46,12 +49,14 @@ export interface EnhanceState {
   readonly text: string
   /** Whether Accept also creates the previewed goal through the goal seam. */
   readonly emitGoal: boolean
+  /** Active architecture stream framework. */
+  readonly streamMode: EnhanceStreamMode
 }
 
 /** Host-reaching collaborators, built in `apply`'s ctx closure. */
 export interface EnhanceDeps {
   /** Open the streamed text projection of one draft. */
-  stream: (draft: string) => EnhanceStream
+  stream: (draft: string, depth?: string) => EnhanceStream
   /** Read the composer draft text and revision at one moment. */
   readDraft: () => EnhanceDraft
   /** Subscribe to composer draft-state changes; returns the unsubscriber. */
@@ -67,7 +72,14 @@ export interface EnhanceDeps {
 }
 
 /** The closed state: no popover, no stream, no text, no goal emission. */
-const CLOSED: EnhanceState = Object.freeze({ open: false, status: 'idle', original: '', text: '', emitGoal: false })
+const CLOSED: EnhanceState = Object.freeze({
+  open: false,
+  status: 'idle',
+  original: '',
+  text: '',
+  emitGoal: false,
+  streamMode: 'solo',
+})
 
 /** One in-flight streamed attempt before it settles or is discarded. */
 interface LiveAttempt {
@@ -93,6 +105,9 @@ export class EnhanceController {
   /** Host-reaching collaborators. */
   private readonly deps: EnhanceDeps
 
+  /** Active architecture stream framework, preserved across requests. */
+  private streamMode: EnhanceStreamMode = 'solo'
+
   /** Monotonic token so a stale attempt never lands over a newer one. */
   private attempt = 0
 
@@ -109,16 +124,38 @@ export class EnhanceController {
     this.state = createSnapshotStore<EnhanceState>(CLOSED, { flush: 'raf' })
   }
 
+  /**
+   * Switch the active architectural framework stream.
+   * Re-requests the stream if the preview is currently open.
+   */
+  setStreamMode(mode: EnhanceStreamMode): void {
+    if (this.streamMode === mode) return
+    this.streamMode = mode
+    const snapshot = this.state.getSnapshot()
+    if (snapshot.open) {
+      this.request()
+    } else {
+      this.state.set({ ...snapshot, streamMode: mode })
+    }
+  }
+
   /** Open the popover and stream one ghost rewrite of the current draft. */
   request(): void {
     const attempt = this.discard()
     const draft = this.deps.readDraft()
-    this.state.set({ open: true, status: 'pending', original: draft.text, text: '', emitGoal: false })
+    this.state.set({
+      open: true,
+      status: 'pending',
+      original: draft.text,
+      text: '',
+      emitGoal: false,
+      streamMode: this.streamMode,
+    })
     const live: LiveAttempt = {
       attempt,
       original: draft.text,
       rev: draft.rev,
-      stream: this.deps.stream(draft.text),
+      stream: this.deps.stream(draft.text, this.streamMode),
       unwatch: this.deps.watchDraft(() => { this.keystroke(draft.rev) }),
       text: '',
     }
@@ -182,7 +219,7 @@ export class EnhanceController {
   private discard(): number {
     this.attempt += 1
     this.closeStream()
-    this.state.set(CLOSED)
+    this.state.set({ ...CLOSED, streamMode: this.streamMode })
     return this.attempt
   }
 
@@ -201,18 +238,39 @@ export class EnhanceController {
       for await (const chunk of live.stream) {
         if (live.attempt !== this.attempt) return
         live.text += chunk.text
-        this.state.set({ open: true, status: 'streaming', original: live.original, text: live.text, emitGoal: false })
+        this.state.set({
+          open: true,
+          status: 'streaming',
+          original: live.original,
+          text: live.text,
+          emitGoal: false,
+          streamMode: this.streamMode,
+        })
       }
     } catch {
       // A failed stream lands no text: the error tier shows its single line.
       if (live.attempt !== this.attempt) return
       this.closeStream()
-      this.state.set({ open: true, status: 'error', original: live.original, text: '', emitGoal: false })
+      this.state.set({
+        open: true,
+        status: 'error',
+        original: live.original,
+        text: '',
+        emitGoal: false,
+        streamMode: this.streamMode,
+      })
       return
     }
     if (live.attempt !== this.attempt) return
     this.closeStream()
-    this.state.set({ open: true, status: 'ready', original: live.original, text: live.text, emitGoal: false })
+    this.state.set({
+      open: true,
+      status: 'ready',
+      original: live.original,
+      text: live.text,
+      emitGoal: false,
+      streamMode: this.streamMode,
+    })
   }
 
   /** Abort instantly on the first draft-revision change while streaming. */

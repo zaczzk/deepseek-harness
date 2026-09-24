@@ -14,6 +14,10 @@ export const zh = {
   'action.dismiss': '忽略',
   'diff.aria': '改写差异',
   'error.preview': '增强失败，请重试。',
+  'stream.aria': '架构范式选择',
+  'stream.prototype': '原型 (Prototype)',
+  'stream.solo': '独立应用 (Solo)',
+  'stream.shared': '协作应用 (Shared)',
 } satisfies Record<string, string>
 
 /** The enhance namespace key union. */
@@ -29,4 +33,8 @@ export const en: Record<EnhanceKey, string> = {
   'action.dismiss': 'Dismiss',
   'diff.aria': 'Rewrite diff',
   'error.preview': 'Enhancement failed. Try again.',
+  'stream.aria': 'Architecture stream selection',
+  'stream.prototype': 'Prototype',
+  'stream.solo': 'Solo App',
+  'stream.shared': 'Shared App',
 }

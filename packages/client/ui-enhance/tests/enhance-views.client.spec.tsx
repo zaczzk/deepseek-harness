@@ -187,4 +187,23 @@ describe('EnhancePreviewView', () => {
     await settle()
     expect(b.writes).toEqual([COMPLETE])
   })
+
+  it('renders the architecture stream selector and switches mode when clicked', async () => {
+    const b = enhanceDoubles('Ship the settings page')
+    const controller = new EnhanceController(b.deps)
+    render(<EnhancePreviewView controller={controller} t={t} />)
+    act(() => { controller.request() })
+    await settle()
+    const radiogroup = screen.getByRole('radiogroup', { name: en['stream.aria'] })
+    expect(radiogroup).toBeDefined()
+    const protoRadio = screen.getByRole('radio', { name: en['stream.prototype'] })
+    expect(protoRadio.getAttribute('aria-checked')).toBe('false')
+    const soloRadio = screen.getByRole('radio', { name: en['stream.solo'] })
+    expect(soloRadio.getAttribute('aria-checked')).toBe('true')
+
+    fireEvent.click(protoRadio)
+    await settle()
+    expect(controller.state.getSnapshot().streamMode).toBe('prototype')
+    expect(b.streams).toHaveLength(2)
+  })
 })

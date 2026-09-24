@@ -158,7 +158,14 @@ describe('ui-enhance browser plugin', () => {
     await flush()
     expect(b.streams[0]!.disposals()).toBe(1)
     expect(b.writes).toEqual([])
-    expect(button.controller.state.getSnapshot()).toEqual({ open: false, status: 'idle', original: '', text: '', emitGoal: false })
+    expect(button.controller.state.getSnapshot()).toEqual({
+      open: false,
+      status: 'idle',
+      original: '',
+      text: '',
+      emitGoal: false,
+      streamMode: 'solo',
+    })
   })
 
   it('fails loud when a session resolves no scope', async () => {

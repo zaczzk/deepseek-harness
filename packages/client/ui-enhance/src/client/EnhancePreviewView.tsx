@@ -68,6 +68,22 @@ export function EnhancePreviewView({ controller, t }: EnhancePreviewViewProps) {
   if (!state.open) return null
   return (
     <div ref={cardRef} className={css.card} role="dialog" aria-label={t('preview.aria')}>
+      <div className={css.header}>
+        <div className={css.streamSelector} role="radiogroup" aria-label={t('stream.aria')}>
+          {(['prototype', 'solo', 'shared'] as const).map(mode => (
+            <button
+              key={mode}
+              type="button"
+              role="radio"
+              aria-checked={state.streamMode === mode}
+              className={clsx(css.streamButton, state.streamMode === mode && css.streamButtonActive)}
+              onClick={() => { controller.setStreamMode(mode) }}
+            >
+              {t(`stream.${mode}`)}
+            </button>
+          ))}
+        </div>
+      </div>
       {state.status === 'pending' && <IconLoadingOutlineRegular aria-hidden />}
       {state.status === 'error' && <div className={css.error} role="alert">{t('error.preview')}</div>}
       {state.status === 'streaming' && (
