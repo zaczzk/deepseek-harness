@@ -31,6 +31,13 @@
       config:
         root: []
 
+    # Preflight boot integrity checks, client bundle validation, and build self-healing.
+    - id: boot-self-heal
+      name: '@deepseek-ai/dsh-boot-self-heal'
+      config:
+        enabled: true
+        autoRemediate: true
+
     - id: llm
       name: '@deepseek-ai/dsh-llm'
 
@@ -468,6 +475,14 @@
       config:
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
+
+    # Agent inner-loop error diagnostic classifier and self-healing advisor.
+    - id: guard-self-heal
+      name: '@deepseek-ai/dsh-guard-self-heal'
+      config:
+        enabled: true
+        enableInlineHints: true
+        maxHintsPerTurn: 3
 
     # The shared base enables the stable model-facing web_search and web_fetch
     # tools. The Web app disables this host row and composes both tools per agent

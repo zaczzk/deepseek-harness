@@ -1622,6 +1622,19 @@ importers:
         specifier: ^4.0.9
         version: 4.0.9
 
+  packages/boot/boot-self-heal:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@types/node':
+        specifier: ^22.13.0
+        version: 22.20.0
+
   packages/boot/cmdline:
     devDependencies:
       '@deepseek-ai/cordis':
@@ -1847,6 +1860,9 @@ importers:
       '@deepseek-ai/dsh-bash-sandbox':
         specifier: workspace:^
         version: link:../../shell/bash-sandbox
+      '@deepseek-ai/dsh-boot-self-heal':
+        specifier: workspace:^
+        version: link:../../boot/boot-self-heal
       '@deepseek-ai/dsh-command-compact':
         specifier: workspace:^
         version: link:../../compaction/command-compact
@@ -1901,6 +1917,9 @@ importers:
       '@deepseek-ai/dsh-goal-round-driver':
         specifier: workspace:^
         version: link:../../goal/goal-round-driver
+      '@deepseek-ai/dsh-guard-self-heal':
+        specifier: workspace:^
+        version: link:../../guard/guard-self-heal
       '@deepseek-ai/dsh-hmr':
         specifier: workspace:^
         version: link:../../boot/hmr
@@ -8602,6 +8621,31 @@ importers:
       '@deepseek-ai/dsh-tools':
         specifier: workspace:^
         version: link:../../core/tools
+
+  packages/guard/guard-self-heal:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-agent':
+        specifier: workspace:^
+        version: link:../../core/agent
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+      '@deepseek-ai/dsh-session':
+        specifier: workspace:^
+        version: link:../../core/session
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
+      '@types/node':
+        specifier: ^22.13.0
+        version: 22.20.0
 
   packages/guard/repeat-tool-reminder:
     dependencies:
