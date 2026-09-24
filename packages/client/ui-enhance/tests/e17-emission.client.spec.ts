@@ -12,15 +12,16 @@ const GOAL: EnhanceGoalDraft = {
 function settledStream(text: string): EnhanceStream {
   let sent = false
   return {
-    [Symbol.asyncIterator]() { return this },
-    next: (): Promise<IteratorResult<{ text: string }>> => {
-      if (sent) return Promise.resolve({ done: true, value: undefined })
-      sent = true
-      return Promise.resolve({ done: false, value: { text } })
-    },
-    return: (): Promise<IteratorResult<{ text: string }>> => Promise.resolve({ done: true, value: undefined }),
     dispose: () => {},
-  } as EnhanceStream
+    [Symbol.asyncIterator]: () => ({
+      next: (): Promise<IteratorResult<{ text: string }>> => {
+        if (sent) return Promise.resolve({ done: true, value: undefined })
+        sent = true
+        return Promise.resolve({ done: false, value: { text } })
+      },
+      return: (): Promise<IteratorResult<{ text: string }>> => Promise.resolve({ done: true, value: undefined }),
+    }),
+  }
 }
 
 /** Drive one controller to ready and record its goal-seam calls. */

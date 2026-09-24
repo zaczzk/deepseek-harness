@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { EnhanceController } from '../src/client/enhance-controller.ts'
-import { enhanceDoubles } from './enhance-doubles.ts'
+import { enhanceDoubles } from './enhance-doubles.client.ts'
 
 /** The settled closed state every abort leaves behind. */
 const CLOSED = { open: false, status: 'idle', original: '', text: '', emitGoal: false }

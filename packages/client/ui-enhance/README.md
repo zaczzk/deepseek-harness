@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-`dsh-client-ui-enhance` adds an Enhance control to the composer: press it and an anchored popover shows your draft restructured into a task — objective, constraints, acceptance criteria — as changed-line hunks you can review. Accept writes the rewrite in one atomic replace; Dismiss, Escape, or any interruption leaves your draft byte-identical. All copy is locale-owned (en/zh), the control is one quiet icon, and the preview runs over the host-side enhance Remote — no model call, no cost.
+`dsh-client-ui-enhance` adds an Enhance control to the composer: press it and your draft's rewrite streams into an anchored popover as a plain-text ghost, then settles as changed-line hunks — objective, constraints, acceptance criteria — you can review. Accept writes the complete rewrite in one atomic replace; Dismiss, Escape, an outside click, or any keystroke in the draft aborts the stream and leaves your draft byte-identical. All copy is locale-owned (en/zh), the control is one quiet icon, and the preview runs over the host-side enhance Remote — no model call, no cost.
 
 ## Table of Contents
 
@@ -35,11 +35,12 @@ Choose this plugin to give people an inline rewrite of their unsent drafts. Avoi
 
 | Action | Result |
 |---|---|
-| Press the Enhance button | The popover opens and one preview of the current draft is requested. |
-| Accept | The draft is replaced in one atomic write and focus returns to the composer. |
-| Dismiss / Escape / outside interaction | The popover closes and the draft is untouched, byte for byte. |
+| Press the Enhance button | The popover opens and the rewrite of the current draft streams in as a ghost. |
+| Accept | Enabled once the stream settles: the draft is replaced with the complete rewrite in one atomic write and focus returns to the composer. |
+| Dismiss / Escape / outside click | The stream aborts, the popover closes, and the draft is untouched, byte for byte. |
+| Any keystroke in the draft | The stream aborts instantly and the popover closes; the draft is untouched, byte for byte. |
 
-Pending and failure states carry no prose: the busy tier shows one icon, and the failure tier shows one short actionable line.
+Busy and failure states carry no prose: the busy tier shows one icon, the streaming ghost is the arriving text itself, and the failure tier shows one short actionable line.
 
 ### Minimal configuration
 
@@ -60,16 +61,16 @@ The row requires the enhance Remote (`dsh-enhance-runtime`) and the conversation
 
 One per-composer controller is shared by two slot registrations, and it is the only reach beyond this package.
 
-`apply` registers the button into `conversation.input.right` and the preview popover into `conversation.input.overlay` through `ctx.slots.inject`, each injecting the same `EnhanceController` handle for the session. The controller holds transient state (an identity-stable snapshot store), a stale-attempt token so a late response never lands over a newer one, and the four verbs: `request` reads the draft through `conversation.input.for(actx).state` and calls the enhance Remote; `accept` performs the single atomic `conversation.input.for(actx).setDraft(text)` replace; `dismiss` writes nothing. `focus()` restores the composer caret after either exit.
+`apply` registers the button into `conversation.input.right` and the preview popover into `conversation.input.overlay` through `ctx.slots.inject`, each injecting the same `EnhanceController` handle for the session. The controller holds transient streaming state (an identity-stable snapshot store whose raf flush paints one frame's worth of chunks as one update), a stale-attempt token so a late chunk never lands over a newer attempt, and the verbs: `request` captures the draft through `conversation.input.for(actx).state` and opens the enhance Remote's `previewText` stream; `accept` performs the single atomic `conversation.input.for(actx).setDraft(text)` replace of the settled text; `dismiss` writes nothing. The controller observes the input state's `draftRev` and aborts the stream on its first change — a keystroke discards the overlay instantly. `focus()` restores the composer caret after Accept and Dismiss.
 
-The popover renders changed-line hunks from the maintained `diff` library against the draft captured at request time. Both views are package-internal; tests import them directly.
+The popover streams the arriving text as a plain-text ghost and renders the settled rewrite as changed-line hunks from the maintained `diff` library against the draft captured at request time. Escape and outside pointers abort exactly like Dismiss. Both views are package-internal; tests import them directly.
 
 | File | Role |
 |---|---|
 | [`src/client/index.ts`](src/client/index.ts) | Assembly: locale registration, the two slot registrations, controller wiring |
-| [`src/client/enhance-controller.ts`](src/client/enhance-controller.ts) | Transient preview state and the atomic-accept / byte-identical-dismiss verbs |
+| [`src/client/enhance-controller.ts`](src/client/enhance-controller.ts) | Streaming preview state and the atomic-accept / byte-identical-discard verbs |
 | [`src/client/EnhanceButtonView.tsx`](src/client/EnhanceButtonView.tsx) | The quiet composer control |
-| [`src/client/EnhancePreviewView.tsx`](src/client/EnhancePreviewView.tsx) | The anchored changed-line preview popover |
+| [`src/client/EnhancePreviewView.tsx`](src/client/EnhancePreviewView.tsx) | The anchored ghost/diff preview popover |
 
 No runtime invariant companion is published: this plugin owns presentation state only, and its behavior crosses packages exclusively through injected Cordis services and slots.
 
@@ -105,7 +106,7 @@ These limits define when the plugin is a poor fit; they are the current package 
 
 - **Changed-lines diff only** — the side-by-side responsive split arrives with the composer-UX refinement slice; this slice renders one changed-line column.
 - **No hotkey yet** — the composer exposes no keyboard extension seam, so the control is pointer-driven until one exists.
-- **Preview, then accept** — ghost streaming, the variant ring, and the depth menu arrive with the streaming and variant slices.
+- **Variant ring and depth menu deferred** — the prior-rewrite variant ring and the depth menu arrive with their slices; ghost streaming ships in this one.
 
 <a id="dev-note"></a>
 ### Dev Note
