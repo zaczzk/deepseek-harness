@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 本宿主插件拥有用量指示器不应看到的提供方会话。它用保存的会话 cookie 轮询控制台的 Token Plan 用量端点，把报告 `data.monthUsage.items` 中的月度配额行解析为一个月度用量窗口，并在组合的 connection 信任护栏之后于 `/dsh/token-plan/usage` 提供最新的已报告窗口。cookie 不离开宿主，也从不写入日志；不再携带控制台计数的报告会被拒绝（日志只记录其字段名），此前的窗口继续提供。
 
@@ -18,6 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
 
 -----
 
@@ -89,3 +90,15 @@ kind: "package-reference"
 - **计数 schema 钉在控制台的实时报告上** — `data.monthUsage.items` 中的 `month_total_token` 行携带 `used`/`limit`；漂移的报告记为缺席，日志只记录字段名，直到重新定向解析器。
 
 **Runtime invariant:** 不发布 companion。轮询循环与其路由共享同一份在单一提交点发布的引用，connection 护栏与“解析或拒绝”规则由本包的 Loader 组合规格验证。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作语境 — 点击展开</summary>
+
+本开发备注是非权威的工作语境：给维护者的笔记与未决问题。已交付行为与采纳的理由在上文、包代码与链接的 Agent Notes 中。
+
+- 解析器钉在实时的 `month_total_token` 行上；漂移时日志只记录报告的字段名。控制台还带有 `plan_total_token` 与 `compensation_total_token` 行，以及含 `currentPeriodEnd` 的 `detail` 载荷，目前尚无消费方请求它们。
+
+</details>

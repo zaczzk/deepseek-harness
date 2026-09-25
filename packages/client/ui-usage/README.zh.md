@@ -7,7 +7,7 @@ kind: "package-reference"
 
 [English](README.md) | 中文
 
-## 摘要
+## 概述
 
 用量指示器是会话标题栏工具行中的小控件：一条按路由分段的横条配以紧凑的会话代币总量，点开面板可看会话与项目总量、提供方报告的周与月额度百分比，以及本会话的计费提供方/模型路由（当前模型高亮）。会话尚未产生计费时不渲染任何内容，没有来源报告用量窗口时不渲染额度行。所有数字都读取宿主计算的投影（`tokenUsageByModel`、`tokenUsage`、`modelSelection`）与共享的会话、工作区列表；本包不拥有任何计量，也不添加任何模型可见面。
 
@@ -18,6 +18,7 @@ kind: "package-reference"
 - [延伸阅读](#further-exploration)
 - [模型体验](#model-experience)
 - [已知限制与后续工作](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
 
 -----
 
@@ -98,3 +99,15 @@ kind: "package-reference"
 - **会话总量指计费的助手与 compaction 流量** — `tokenUsageByModel` 折叠助手结算与 `compaction/summary` 调用，因此比 `tokenUsage` 多出摘要调用的用量。
 
 **Runtime invariant:** 不发布 companion。所有显示数字都派生自宿主拥有的投影与列表，指示器自身不持有状态，其唯一一次 slot 注册的销毁由 HMR-safety 规格验证。
+
+<a id="dev-note"></a>
+### 开发备注
+
+<details>
+<summary>维护者工作语境 — 点击展开</summary>
+
+本开发备注是非权威的工作语境：给维护者的笔记与未决问题。已交付行为与采纳的理由在上文、包代码与链接的 Agent Notes 中。
+
+- 延迟窗口在显示时对持久样本时间戳求平均，因此折叠不需要时钟、回放保持确定。提供方报告周窗口后，面板才会出现该行。
+
+</details>

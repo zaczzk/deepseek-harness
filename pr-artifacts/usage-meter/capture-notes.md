@@ -1,6 +1,6 @@
 # Capture notes: session-header token-usage meter demo
 
-## Provenance
+## Capture record
 
 | Fact | Value |
 |---|---|

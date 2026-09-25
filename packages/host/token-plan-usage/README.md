@@ -18,6 +18,7 @@ This host plugin owns the provider session the usage meter must not see. It poll
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -89,3 +90,15 @@ None; this package neither assembles nor sends a provider request on the model's
 - **The counts schema is pinned to the live console report** — the `month_total_token` row of `data.monthUsage.items` carries `used`/`limit`; a drifted report reports absent and logs only its field names until the parser is retargeted.
 
 **Runtime invariant:** No companion is published. The poll loop and its route share one reference published at one commit point, and the connection fence plus the parse-or-refuse rule are asserted by this package's Loader-composition spec.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+This Dev Note is non-authoritative working context: notes for maintainers and open questions. Shipped behavior and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
+
+- The parser is pinned to the live `month_total_token` row; a drift logs the report's field names only. The console also carries `plan_total_token` and `compensation_total_token` rows and a `detail` payload with `currentPeriodEnd`, which no consumer requests yet.
+
+</details>

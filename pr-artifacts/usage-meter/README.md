@@ -12,7 +12,7 @@ no SSH key). A maintainer with rights can land `zaczzk:feat/usage-meter` using
 | File | Role |
 |---|---|
 | [pr-body.md](pr-body.md) | Pull-request body: what, demo embed, evidence, label requests |
-| [capture-notes.md](capture-notes.md) | GIF provenance: tree, transport, mode flags, encoding |
+| [capture-notes.md](capture-notes.md) | GIF capture record: tree, transport, mode flags, encoding |
 | [boot.ps1](boot.ps1) | Boots one real `dsh web` server from the recorded tree |
 
 The Playwright capture and probe scripts stay local under `.playwright-mcp/gif-run/`, with the raw video and QA frames.

@@ -23,7 +23,8 @@ export function parseUsageLimits(report: unknown): UsageLimitReport[] | null {
   if (typeof monthUsage !== 'object' || monthUsage === null) return null
   const items = (monthUsage as { items?: unknown }).items
   if (!Array.isArray(items)) return null
-  const row = items.find(item => typeof item === 'object'
+  const rows: readonly unknown[] = items
+  const row = rows.find(item => typeof item === 'object'
     && item !== null
     && (item as { name?: unknown }).name === 'month_total_token')
   if (row === undefined) return null

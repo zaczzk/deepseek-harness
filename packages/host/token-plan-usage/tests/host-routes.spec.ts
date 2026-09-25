@@ -16,6 +16,7 @@ import { pathToFileURL } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import Loader from '@deepseek-ai/cordis-plugin-loader'
+import type { ModuleLoader } from '@deepseek-ai/cordis-plugin-loader'
 import Include from '@deepseek-ai/cordis-plugin-include'
 import WebServer from '@deepseek-ai/dsh-host-webserver'
 import * as TokenPlanUsage from '../src/index.ts'
@@ -66,13 +67,21 @@ async function boot(session: string, consoleOrigin = 'https://console.example'):
     ['@deepseek-ai/dsh-host-webserver', WebServer],
     ['@deepseek-ai/dsh-host-token-plan-usage', TokenPlanUsage],
   ])
-  context.loader.internal = {
+  // The Loader seam: a complete ModuleLoader shape whose only live member
+  // answers plugin imports from the fixture map.
+  const internal: ModuleLoader = {
     version: 'v2',
+    loadCache: new Map(),
     async import(specifier: string) {
       if (!modules.has(specifier)) throw new Error(`unexpected Loader import: ${specifier}`)
       return modules.get(specifier)
     },
-  } as unknown as NonNullable<typeof context.loader.internal>
+    register: () => {},
+    getOrCreateModuleJob: () => Promise.reject(new Error('unused test seam')),
+    resolveSync: () => { throw new Error('unused test seam') },
+    load: () => Promise.reject(new Error('unused test seam')),
+  }
+  context.loader.internal = internal
   await context.loader.create({
     name: 'cordis:include',
     config: { path: pathToFileURL(configPath).href },

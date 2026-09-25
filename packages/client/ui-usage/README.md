@@ -18,6 +18,7 @@ The usage meter is a small control in the Session header's utility row: a per-ro
 - [Further Exploration](#further-exploration)
 - [Model Experience](#model-experience)
 - [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
 
 -----
 
@@ -98,3 +99,15 @@ These limits define where the meter stops and future work begins. They are curre
 - **The session total names billed assistant and compaction traffic** — `tokenUsageByModel` folds assistant settlements and `compaction/summary` calls, so it exceeds `tokenUsage` by the summarizer's usage.
 
 **Runtime invariant:** No companion is published. Every displayed figure derives from host-owned projections and lists, the meter holds no state of its own, and its single slot registration proves disposal through the HMR-safety spec.
+
+<a id="dev-note"></a>
+### Dev Note
+
+<details>
+<summary>Working context for maintainers — click to expand</summary>
+
+This Dev Note is non-authoritative working context: notes for maintainers and open questions. Shipped behavior and accepted rationale live in the sections above, the package code, and the linked Agent Notes.
+
+- Latency windows average at display time over the durable sample timestamps, so the fold needs no clock and replay stays deterministic. A weekly window joins the panel when a provider reports one.
+
+</details>
