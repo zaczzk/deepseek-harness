@@ -4,12 +4,12 @@ import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { UsageIndicator } from '../src/client/UsageIndicator.tsx'
-import type { UsageLimit } from '../src/client/contract.ts'
+import type { UsageReport } from '../src/client/contract.ts'
 import { apply, inject } from '../src/client/index.ts'
 import { apply as hostApply } from '../src/index.ts'
 
 type InjectedFace = {
-  loadLimits: () => Promise<readonly UsageLimit[]>
+  loadLimits: () => Promise<UsageReport>
 }
 
 function declare(slots: SlotRegistry): () => void {
@@ -41,7 +41,7 @@ describe('usage browser plugin', () => {
     expect(entry.component).toBe(UsageIndicator)
     expect(entry.options).toMatchObject({ id: 'usage', order: 10 })
     const face = entry.inject!() as InjectedFace
-    expect(await face.loadLimits()).toEqual([])
+    expect(await face.loadLimits()).toEqual({ limits: [], state: 'ok' })
 
     await b.fiber.dispose()
     expect(b.slots.entries('conversation.session.header.utilities')).toHaveLength(0)

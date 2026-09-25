@@ -1,7 +1,7 @@
 /** Session and project token-usage meter: a quiet per-route bar with the compact
  * session total in the Session header's utility row, and a click-open panel of
- * scope totals, provider-reported limits, and per-route usage. Renders nothing
- * until the session reports usage. */
+ * scope totals, latency windows, provider-reported limits, plan, and per-route
+ * usage. Renders nothing until the session reports usage. */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -14,10 +14,10 @@ import type {} from '@deepseek-ai/dsh-token-meter/client'
 // Type-only: pulls the `modelLatency` projection key merge.
 import type {} from '@deepseek-ai/dsh-session-stats/client'
 import { Tooltip, useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { UsageInjected, UsageLimit } from './contract.ts'
+import type { UsageInjected, UsageReport } from './contract.ts'
 import { NS } from './locales.ts'
-import { bucketTotal, deriveUsageTotals, limitPercent, windowLatency } from './usage.ts'
-import { formatLatency, formatTokens } from './format.ts'
+import { bucketTotal, deriveUsageTotals, limitPercent, windowLatency, windowLatencyP95 } from './usage.ts'
+import { formatLatency, formatLatencyPair, formatPlanReset, formatRunway, formatTokens } from './format.ts'
 import css from './UsageIndicator.module.css'
 
 /** Route tint classes in bar-segment order; each also tints its panel swatch. */
@@ -28,9 +28,12 @@ export type UsageIndicatorProps =
   & PropsLocale<typeof NS>
   & InjectFace<UsageInjected>
 
+/** The report state before a first read: no rows, session healthy. */
+const UNREPORTED: UsageReport = { limits: [], state: 'ok' }
+
 /**
  * Adapt the usage projections to the header meter and its detail panel.
- * @param props - framework standard seats, the meter's copy seat, and the injected limit source.
+ * @param props - framework standard seats, the meter's copy seat, and the injected report source.
  * @returns the meter, or null before the session reports usage.
  */
 export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | null {
@@ -41,22 +44,26 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
   const latency = useProjection('modelLatency')
   const byId = useSessions(state => state)
   const workspaces = useWorkspaces(state => state)
-  const [limits, setLimits] = useState<readonly UsageLimit[]>([])
+  const [report, setReport] = useState<UsageReport>(UNREPORTED)
   const current = selection?.next ?? selection?.lastUsed ?? undefined
   // Windows average at display time over durable sample timestamps: an idle
   // model contributes no samples, so its quiet time never dilutes a figure.
   const latencyWindows = useMemo(() => ({
     recent: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
+    recentP95: windowLatencyP95(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
     hour: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
+    hourP95: windowLatencyP95(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
   }), [latency, current])
   const usage = useMemo(
     () => deriveUsageTotals({ split, totals }, byId, workspaces, sessionId),
     [split, totals, byId, workspaces, sessionId],
   )
-  const limitRows = useMemo(() => limits.flatMap((limit) => {
+  const monthLimit = report.limits.find(limit => limit.period === 'month')
+  const monthPercent = monthLimit === undefined ? undefined : limitPercent(monthLimit)
+  const limitRows = useMemo(() => report.limits.flatMap((limit) => {
     const percent = limitPercent(limit)
     return percent === undefined ? [] : [{ limit, percent }]
-  }), [limits])
+  }), [report])
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLSpanElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
@@ -77,12 +84,12 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
     if (!available && open) setOpen(false)
   }, [available, open])
 
-  // Limits are provider reports, not session state: they load with the panel.
+  // Provider reports are not session state: they load with the panel.
   useEffect(() => {
     if (!open || !available) return
     let settled = false
     void loadLimits().then((reported) => {
-      if (!settled) setLimits(reported)
+      if (!settled) setReport(reported)
     })
     return () => { settled = true }
   }, [open, available, loadLimits])
@@ -99,6 +106,13 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
   if (usage.session === undefined || usage.session === 0) return null
   const reading = t('count', { count: formatTokens(usage.session, t) })
   const latencyNote = latencyWindows.recent === undefined ? '' : ` · ${formatLatency(latencyWindows.recent, t)}`
+  const quotaNote = monthPercent === undefined ? '' : ` · ${String(monthPercent)}%`
+  const ariaLabel = monthPercent === undefined
+    ? t('trigger.aria', { tokens: formatTokens(usage.session, t) })
+    : t('trigger.aria.quota', { tokens: formatTokens(usage.session, t), percent: monthPercent })
+  // A session that met the console's login challenge keeps its rows dark:
+  // the one actionable line belongs to the panel's error state.
+  const showProvider = report.state === 'ok'
   const routeLabel = (row: { provider: string; model: string }): string =>
     row.provider === '' && row.model === '' ? t('unknown') : `${row.provider}/${row.model}`
   const mixTotal = usage.models.reduce((total, row) => total + bucketTotal(row), 0)
@@ -110,11 +124,11 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
 
   return (
     <span ref={rootRef} className={css.root}>
-      <Tooltip label={t('trigger.aria', { tokens: formatTokens(usage.session, t) })} side="bottom" delayMs={200} disabled={open}>
+      <Tooltip label={ariaLabel} side="bottom" delayMs={200} disabled={open}>
         <button
           type="button"
           className={css.trigger}
-          aria-label={t('trigger.aria', { tokens: formatTokens(usage.session, t) })}
+          aria-label={ariaLabel}
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => { setOpen(!open) }}
@@ -130,7 +144,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
                 />
               ))}
           </span>
-          <span>{reading}{latencyNote}</span>
+          <span>{reading}{latencyNote}{quotaNote}</span>
         </button>
       </Tooltip>
       {open && createPortal(
@@ -155,16 +169,20 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
             {latencyWindows.recent !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.latency15')}</dt>
-                <dd>{formatLatency(latencyWindows.recent, t)}</dd>
+                <dd>{latencyWindows.recentP95 === undefined
+                  ? formatLatency(latencyWindows.recent, t)
+                  : formatLatencyPair(latencyWindows.recent, latencyWindows.recentP95, t)}</dd>
               </div>
             )}
             {latencyWindows.hour !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.latency60')}</dt>
-                <dd>{formatLatency(latencyWindows.hour, t)}</dd>
+                <dd>{latencyWindows.hourP95 === undefined
+                  ? formatLatency(latencyWindows.hour, t)
+                  : formatLatencyPair(latencyWindows.hour, latencyWindows.hourP95, t)}</dd>
               </div>
             )}
-            {limitRows.map(({ limit, percent }) => {
+            {showProvider && limitRows.map(({ limit, percent }) => {
               const period = limit.period === 'week' ? t('panel.week') : t('panel.month')
               return (
                 <div key={limit.period} className={css.row}>
@@ -182,6 +200,26 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
                 </div>
               )
             })}
+            {showProvider && report.credits !== undefined && (
+              <div className={css.row}>
+                <dt>{t('panel.compensation')}</dt>
+                <dd>{t('count', { count: formatTokens(report.credits.usedTokens, t) })}</dd>
+              </div>
+            )}
+            {showProvider && report.plan !== undefined && (
+              <div className={css.row}>
+                <dt>{t('panel.plan')}</dt>
+                <dd>{report.plan.name}</dd>
+              </div>
+            )}
+            {showProvider && report.plan !== undefined && (
+              <div className={css.row}>
+                <dt>{t('panel.resets')}</dt>
+                <dd>{report.plan.burn === undefined
+                  ? formatPlanReset(report.plan.resetsAt)
+                  : `${formatPlanReset(report.plan.resetsAt)} · ${formatRunway(report.plan.burn.projectedDays, t)}`}</dd>
+              </div>
+            )}
           </dl>
           {usage.models.length > 1 && (
             <dl className={css.rows}>

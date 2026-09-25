@@ -2,6 +2,36 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 
 /**
+ * Compose one latency row value from its window average and tail.
+ * @param avgMs - window average latency in milliseconds.
+ * @param p95Ms - window tail latency in milliseconds.
+ * @param t - the meter's translate seat, which carries the pair template.
+ * @returns `1.2s · p95 3.1s`.
+ */
+export function formatLatencyPair(avgMs: number, p95Ms: number, t: TranslateNS<typeof NS>): string {
+  return t('latency.pair', { value: formatLatency(avgMs, t), p95: formatLatency(p95Ms, t) })
+}
+
+/**
+ * Compose the plan reset date from the provider's naive period end.
+ * @param resetsAt - the provider's `YYYY-MM-DD HH:mm:ss` period end.
+ * @returns its `MM-DD` slice; the plan calendar keeps the year out of reach.
+ */
+export function formatPlanReset(resetsAt: string): string {
+  return resetsAt.slice(5, 10)
+}
+
+/**
+ * Compose the burn-runway figure beside a reset date.
+ * @param days - projected days to exhaustion at the observed rate.
+ * @param t - the meter's translate seat, which carries the runway template.
+ * @returns `≈12d`.
+ */
+export function formatRunway(days: number, t: TranslateNS<typeof NS>): string {
+  return t('burn.runway', { days })
+}
+
+/**
  * Format one latency figure.
  * @param ms - average latency in milliseconds.
  * @param t - the meter's translate seat, which carries the latency templates.

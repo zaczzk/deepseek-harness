@@ -112,3 +112,31 @@ export function windowLatency(
   if (samples.length === 0) return undefined
   return Math.round(samples.reduce((total, sample) => total + sample.ms, 0) / samples.length)
 }
+
+/**
+ * Tail (p95) model-call latency of one route inside a recent window.
+ *
+ * The tail reports "has it been really slow" where an average hides spikes;
+ * fewer than five in-window calls is too small a set for a tail figure, so
+ * this reports nothing and the row shows its average alone.
+ * @param routes - the latency rings carried by the `modelLatency` projection.
+ * @param provider - route provider (the model in use).
+ * @param model - route model (the model in use).
+ * @param now - display-time clock, epoch ms.
+ * @param windowMs - window length behind `now`.
+ * @returns nearest-rank p95 latency in ms, or undefined below five samples.
+ */
+export function windowLatencyP95(
+  routes: readonly { provider: string; model: string; samples: readonly { at: number; ms: number }[] }[] | undefined,
+  provider: string | undefined,
+  model: string | undefined,
+  now: number,
+  windowMs: number,
+): number | undefined {
+  if (routes === undefined || provider === undefined || model === undefined) return undefined
+  const route = routes.find(candidate => candidate.provider === provider && candidate.model === model)
+  const samples = route?.samples.filter(sample => sample.at >= now - windowMs) ?? []
+  if (samples.length < 5) return undefined
+  const ordered = [...samples].map(sample => sample.ms).sort((a, b) => a - b)
+  return ordered[Math.min(Math.max(Math.ceil(0.95 * ordered.length) - 1, 0), ordered.length - 1)]
+}

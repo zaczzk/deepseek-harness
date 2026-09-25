@@ -1,21 +1,40 @@
 /**
- * Host reader for the provider's Token Plan usage report: polls the console's
- * usage endpoint with the stored session and serves the newest reported
- * windows to the browser usage meter at {@link TOKEN_PLAN_USAGE_PATH}.
+ * Host reader for the provider's Token Plan reports: polls the console's
+ * usage and detail endpoints with the stored session and serves one
+ * `TokenPlanUsageResponse` to the browser usage meter at
+ * {@link TOKEN_PLAN_USAGE_PATH}.
  *
  * Security has one home, here, exactly like `dsh-host-open-in-app`: every
  * request asks the composition's `connection` service for a rejection first
  * (`requestRejection`), so its Host/Origin fence and browser authentication
  * gate every caller before any usage figure is reachable. The stored session
  * cookie stays on this side of the wire and is never served or logged.
+ *
+ * Failure semantics: every non-auth failure is per-poll keep-previous, while a
+ * login challenge on either poll freezes the whole report as `expired` — the
+ * cookie is one credential, so both polls share that fate at one commit point.
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { Context, Volatile } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import z from '@deepseek-ai/schemastery'
-import { TOKEN_PLAN_USAGE_PATH, type TokenPlanUsageResponse, type UsageLimitReport } from './shared.ts'
-import { parseUsageLimits, reportFieldNames } from './usage.ts'
+import {
+  TOKEN_PLAN_USAGE_PATH,
+  type TokenPlanUsageResponse,
+  type UsageCreditsReport,
+  type UsageLimitReport,
+  type UsagePlanReport,
+} from './shared.ts'
+import {
+  computeBurn,
+  parseCredits,
+  parsePlan,
+  parseUsageLimits,
+  recordObservation,
+  reportFieldNames,
+  type FirstSeen,
+} from './usage.ts'
 
 export type * from './shared.ts'
 
@@ -26,7 +45,7 @@ export const inject = ['webServer', 'connection']
 
 /** Token-plan usage reader configuration. */
 export interface Config {
-  /** Console origin serving the Token Plan usage endpoint. */
+  /** Console origin serving the Token Plan endpoints. */
   readonly origin: Volatile<string>
   /** Stored console session cookie value; empty keeps the reader idle. */
   readonly session: Volatile<string>
@@ -34,7 +53,7 @@ export interface Config {
   readonly sessionEnv: Volatile<string>
   /** Interval between usage polls, in milliseconds. */
   readonly pollIntervalMs: Volatile<number>
-  /** Per-request deadline for one usage poll, in milliseconds. */
+  /** Per-request deadline for one poll, in milliseconds. */
   readonly timeoutMs: Volatile<number>
 }
 
@@ -71,12 +90,19 @@ function sendMethodNotAllowed(res: ServerResponse, allow: 'GET'): void {
   res.end()
 }
 
-/** The console's usage endpoint path, relative to the configured origin. */
+/** The console's endpoint paths, relative to the configured origin. */
 const USAGE_ENDPOINT = '/api/v1/tokenPlan/usage'
+const DETAIL_ENDPOINT = '/api/v1/tokenPlan/detail'
+
+/** A login challenge: the status or the console's own envelope names it. */
+function isLoginChallenge(status: number, body: unknown): boolean {
+  if (status === 401) return true
+  return typeof body === 'object' && body !== null && (body as { code?: unknown }).code === 401
+}
 
 /**
- * Register the usage route and start polling the provider's report.
- * @param ctx - host root context.
+ * Register the usage route and start polling the provider's reports.
+ * @param ctx - host root context carrying the web server and the trust fence.
  * @param config - origin, stored session, and polling bounds.
  */
 export function apply(ctx: Context, config: Config): void {
@@ -84,8 +110,10 @@ export function apply(ctx: Context, config: Config): void {
   const session = config.session.get() !== ''
     ? config.session.get()
     : (process.env[config.sessionEnv.get()] ?? '')
-  /** Newest reported windows; the route serves this reference as-is. */
-  let limits: readonly UsageLimitReport[] = []
+  /** Newest report; the route serves this reference as-is. */
+  let report: TokenPlanUsageResponse = { limits: [], state: 'ok' }
+  /** Period observation behind the burn figure; in-memory by design. */
+  let firstSeen: FirstSeen | undefined
   /** Answer an untrusted/unauthenticated request; true when it was rejected. */
   const rejected = (req: IncomingMessage, res: ServerResponse): boolean => {
     const rejection = connectionOf(ctx).requestRejection(req)
@@ -95,29 +123,79 @@ export function apply(ctx: Context, config: Config): void {
     return true
   }
 
+  const fetchReport = async (path: string): Promise<{ status: number; body: unknown }> => {
+    // `redirect: 'error'`: the stored session rides this request, so a
+    // redirect may never forward it to another origin.
+    const response = await fetch(`${origin}${path}`, {
+      headers: { cookie: session, accept: 'application/json' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(config.timeoutMs.get()),
+    })
+    return { status: response.status, body: await response.json() }
+  }
+
   const poll = async (): Promise<void> => {
+    const now = Date.now()
+    let limits: readonly UsageLimitReport[] = report.limits
+    let credits: UsageCreditsReport | undefined = report.credits
+    let plan: UsagePlanReport | undefined = report.plan
+    let expired = false
+
     try {
-      // `redirect: 'error'`: the stored session rides this request, so a
-      // redirect may never forward it to another origin.
-      const response = await fetch(`${origin}${USAGE_ENDPOINT}`, {
-        headers: { cookie: session, accept: 'application/json' },
-        redirect: 'error',
-        signal: AbortSignal.timeout(config.timeoutMs.get()),
-      })
-      const body: unknown = await response.json()
-      const parsed = parseUsageLimits(body)
-      if (parsed === null) {
-        // Field names only: enough to retarget the parser, and no usage value
-        // ever reaches the log.
-        ctx.logger.warn(
-          `token-plan-usage: report carries no usable counts (fields: ${reportFieldNames(body).join(', ') || 'none'})`,
-        )
-        return
+      const usage = await fetchReport(USAGE_ENDPOINT)
+      if (isLoginChallenge(usage.status, usage.body)) {
+        expired = true
+      } else {
+        const parsed = parseUsageLimits(usage.body)
+        if (parsed === null) {
+          ctx.logger.warn(
+            `token-plan-usage: usage report carries no usable counts (fields: ${reportFieldNames(usage.body).join(', ') || 'none'})`,
+          )
+        } else {
+          limits = parsed
+          credits = parseCredits(usage.body) ?? undefined
+          firstSeen = recordObservation(firstSeen, parsed.find(window => window.period === 'month'), plan?.resetsAt ?? '', now)
+        }
       }
-      limits = parsed
-    } catch (error: unknown) {
-      ctx.logger.warn(`token-plan-usage: usage poll failed: ${String(error)}`)
+    } catch (pollFailure) {
+      ctx.logger.warn(`token-plan-usage: usage poll failed: ${String(pollFailure)}`)
     }
+
+    try {
+      const detail = await fetchReport(DETAIL_ENDPOINT)
+      if (isLoginChallenge(detail.status, detail.body)) {
+        expired = true
+      } else {
+        const parsed = parsePlan(detail.body, now)
+        if (parsed === null) {
+          ctx.logger.warn(
+            `token-plan-usage: detail report carries no plan (fields: ${reportFieldNames(detail.body).join(', ') || 'none'})`,
+          )
+        } else {
+          const month = limits.find(window => window.period === 'month')
+          const burn = month === undefined
+            ? null
+            : computeBurn(month.usedTokens, month.limitTokens, firstSeen, now, parsed.daysUntilReset)
+          plan = {
+            name: parsed.name,
+            resetsAt: parsed.resetsAt,
+            daysUntilReset: parsed.daysUntilReset,
+            ...burn === null ? {} : { burn },
+          }
+        }
+      }
+    } catch (pollFailure) {
+      ctx.logger.warn(`token-plan-usage: detail poll failed: ${String(pollFailure)}`)
+    }
+
+    report = expired
+      ? { ...report, state: 'expired' }
+      : {
+        limits,
+        ...plan === undefined ? {} : { plan },
+        ...credits === undefined ? {} : { credits },
+        state: 'ok',
+      }
   }
 
   ctx.effect(() => ctx.webServer.register({
@@ -129,8 +207,7 @@ export function apply(ctx: Context, config: Config): void {
         sendMethodNotAllowed(res, 'GET')
         return
       }
-      const payload: TokenPlanUsageResponse = { limits }
-      sendJson(res, 200, payload)
+      sendJson(res, 200, report)
     },
   }), `token-plan-usage: GET ${TOKEN_PLAN_USAGE_PATH}`)
 

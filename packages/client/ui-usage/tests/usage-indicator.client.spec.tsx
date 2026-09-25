@@ -12,7 +12,7 @@ import type {
   TokenUsageProjection,
 } from '@deepseek-ai/dsh-token-meter/client'
 import { UsageIndicator, type UsageIndicatorProps } from '../src/client/UsageIndicator.tsx'
-import type { UsageLimit } from '../src/client/contract.ts'
+import type { UsageLimit, UsageReport } from '../src/client/contract.ts'
 import { en, zh } from '../src/client/locales.ts'
 
 afterEach(cleanup)
@@ -37,6 +37,7 @@ interface MeterInput {
   projections?: Record<string, unknown>
   sessionIds?: SessionId[]
   limits?: readonly UsageLimit[]
+  loadLimits?: () => Promise<UsageReport>
   translate?: UsageIndicatorProps['t']
 }
 
@@ -67,7 +68,7 @@ function propsFor(input: MeterInput): UsageIndicatorProps {
     useProjection: (key: string) => (input.projections ?? {})[key],
     useSessions: (selector: (state: SessionListState) => unknown) => selector(emptyList),
     useWorkspaces: (selector: (state: WorkspaceSnapshot) => unknown) => selector(workspaces),
-    loadLimits: () => Promise.resolve(limits),
+    loadLimits: input.loadLimits ?? (async () => ({ limits, state: 'ok' as const })),
     t: input.translate ?? t,
   } as UsageIndicatorProps
 }
@@ -246,6 +247,89 @@ describe('UsageIndicator', () => {
     const panel = view.queryByRole('dialog')!
     expect(panel.textContent).not.toContain('延迟 15 分钟')
     expect(panel.textContent).not.toContain('延迟 1 小时')
+  })
+
+  it('shows the plan, resets, and compensation rows in their pinned order', async () => {
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+        modelSelection: { lastUsed: { provider: 'mock', model: 'a' }, next: null },
+        modelLatency: {
+          routes: [{ provider: 'mock', model: 'a', samples: Array.from({ length: 6 }, () => ({ at: Date.now(), ms: 1_200 })) }],
+        },
+      },
+      limits: [{ period: 'month', usedTokens: 12_751_091_709, limitTokens: 38_000_000_000 }],
+      translate: tEn,
+      loadLimits: async () => ({
+        limits: [{ period: 'month', usedTokens: 12_751_091_709, limitTokens: 38_000_000_000 }],
+        plan: {
+          name: 'Pro',
+          resetsAt: '2026-10-22 23:59:59',
+          daysUntilReset: 27,
+          burn: { dailyTokens: 2_104_075_691, observedSince: '2026-09-25T02:10:00.000Z', projectedDays: 12 },
+        },
+        credits: { usedTokens: 2_400, limitTokens: 0 },
+        state: 'ok',
+      }),
+    })
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    await vi.waitFor(() => {
+      const text = panel.textContent ?? ''
+      // Pinned order: Session … Month, Compensation, Plan, Resets, then routes.
+      expect(text.indexOf('Compensation')).toBeGreaterThan(text.indexOf('Month'))
+      expect(text.indexOf('Plan')).toBeGreaterThan(text.indexOf('Compensation'))
+      expect(text.indexOf('Resets')).toBeGreaterThan(text.indexOf('Plan'))
+      expect(text).toContain('2.4K tok')
+      expect(text).toContain('Pro')
+      expect(text).toContain('10-22 · ≈12d')
+      expect(text).toContain('1.2s · p95 1.2s')
+      expect(view.getByRole('button', { name: /tok/ }).textContent).toContain('34%')
+    })
+  })
+
+  it('keeps provider rows dark on an expired session', () => {
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+      },
+      limits: [{ period: 'month', usedTokens: 5, limitTokens: 10 }],
+      translate: tEn,
+      loadLimits: async () => ({
+        limits: [{ period: 'month', usedTokens: 5, limitTokens: 10 }],
+        plan: { name: 'Pro', resetsAt: '2026-10-22 23:59:59', daysUntilReset: 27 },
+        state: 'expired',
+      }),
+    })
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    expect(panel.textContent).not.toContain('Month')
+    expect(panel.textContent).not.toContain('Pro')
+    expect(panel.textContent).not.toContain('Resets')
+    expect(panel.textContent).not.toContain('Compensation')
+  })
+
+  it('shows the reset date alone until a burn figure exists', async () => {
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+      },
+      translate: tEn,
+      loadLimits: async () => ({
+        limits: [],
+        plan: { name: 'Pro', resetsAt: '2026-10-22 23:59:59', daysUntilReset: 27 },
+        state: 'ok',
+      }),
+    })
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain('10-22')
+    })
+    expect(panel.textContent).not.toContain('≈')
   })
 
   it('reads the English dictionary', async () => {

@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The usage meter is a small control in the Session header's utility row: a per-route bar with the compact session token total, opening a panel with the session and project totals, provider-reported weekly and monthly limit percentages, and the session's billed provider/model routes with the current model marked. It renders nothing until the session bills a token, and no limit row until a source reports a window. Every figure is read from host-computed projections (`tokenUsageByModel`, `tokenUsage`, `modelSelection`) and the shared session and workspace lists; the package owns no accounting and adds no model-visible surface.
+The usage meter is a small control in the Session header's utility row: a per-route bar with the compact session token total and, when sources report them, the 15-minute latency average and month quota percent beside it (`▮▮ 8.7K tok · 1.2s · 34%`); it opens a panel listing the session and project totals, the latency windows, the reported quota, compensation, plan, and reset rows, and the session's billed provider/model routes with the current model marked. It renders nothing until the session bills a token, and no provider row until the Host route reports one. Every figure is read from host-computed projections (`tokenUsageByModel`, `tokenUsage`, `modelSelection`) and the shared session and workspace lists, with provider figures from the reader's route report (`limits` windows, `plan?`, `credits?`, `state`); the package owns no accounting and adds no model-visible surface.
 
 ## Table of Contents
 
@@ -29,7 +29,11 @@ Mount this plugin when the Web composition should show token consumption without
 
 ### Reading the numbers
 
-The session total sums the `tokenUsageByModel` route rows (assistant settlements plus compaction summarizer calls). The project total sums the same figures across every session of the workspace the current session belongs to, taking each other session's cached projection values from the session list. Limit rows are whole percentages of provider-reported windows, clamped in the bar only; a route with no claim is named by the shared `unknown` label. Latency figures average the current model's `modelLatency` samples over the last 15 minutes and hour — only calls that ran contribute, so an idle model reports no figure and dilutes nothing.
+The panel lists its rows in one pinned order — `Session`, `Project`, `Latency 15m`, `Latency 1h`, `Month`, `Compensation`, `Plan`, `Resets` — then the session's billed provider/model routes with the current model marked. The session total sums the `tokenUsageByModel` route rows (assistant settlements plus compaction summarizer calls). The project total sums the same figures across every session of the workspace the current session belongs to, taking each other session's cached projection values from the session list.
+
+Latency rows average the current model's `modelLatency` samples over the last 15 minutes and hour — only calls that ran contribute, so an idle model reports no figure and dilutes nothing — and append the nearest-rank p95 beside the average once the window holds five samples (`1.2s · p95 3.1s`); below five samples the row shows the average alone. The pill carries at most three figures: the session total, the 15-minute average, and the month quota's whole percent (`▮▮ 8.7K tok · 1.2s · 34%`), the last only when a month window is reported.
+
+The quota row is a bar with its whole percent (clamped in the bar only), Compensation shows the reported allowance's compact token count (`2.4K tok`), Plan the subscribed plan name (`Pro`), and Resets the plan's reset month and day with the burn runway figure when the reader reports one (`10-22 · ≈12d`, `10-22` alone otherwise). Rows hide when their data is absent — no plan or credits report, no p95 below five samples — and every provider row stays dark while the console session is expired (`state: 'expired'`). A route with no claim is named by the shared `unknown` label.
 
 ### Composition
 
@@ -39,7 +43,7 @@ The session total sums the `tokenUsageByModel` route rows (assistant settlements
 - name: '@deepseek-ai/dsh-client-ui-usage'
 ```
 
-The meter needs the token-meter projections and the session, workspace, and locale seats; the host reader supplies the reported usage windows. It has no settings and no service of its own.
+The meter needs the token-meter projections and the session, workspace, and locale seats; the host reader supplies the usage report the provider rows render from (`limits` windows, `plan?`, `credits?`, `state`). It has no settings and no service of its own.
 
 -----
 
@@ -55,12 +59,12 @@ This section explains the design behind the meter; the observable behavior is fu
 
 | File | Role |
 |---|---|
-| [`src/client/index.ts`](src/client/index.ts) | Browser plugin: dictionaries, the empty limit source, and the header registration |
+| [`src/client/index.ts`](src/client/index.ts) | Browser plugin: dictionaries and the header registration |
 | [`src/client/UsageIndicator.tsx`](src/client/UsageIndicator.tsx) | Presentation: header pill and click-open panel |
-| [`src/client/usage.ts`](src/client/usage.ts) | Pure scope totals and limit percentages |
+| [`src/client/usage.ts`](src/client/usage.ts) | Pure scope totals, limit percentages, and latency percentiles |
 | [`src/client/limits.ts`](src/client/limits.ts) | Wire reader for the Host's usage route |
-| [`src/client/format.ts`](src/client/format.ts) | Compact token formatting over the shared number templates |
-| [`src/client/contract.ts`](src/client/contract.ts) | `UsageLimit` and the injected limit reader |
+| [`src/client/format.ts`](src/client/format.ts) | Compact token, latency-pair, reset, and runway formatting |
+| [`src/client/contract.ts`](src/client/contract.ts) | `UsageLimit`, `UsageReport`, and the injected report reader |
 
 Totals are pure functions over framework-hook snapshots (`useMemo`); the component holds no subscription machinery. The panel is a portal anchored below the pill, dismissed by outside pointer or Escape.
 
@@ -97,6 +101,8 @@ These limits define where the meter stops and future work begins. They are curre
 - **Limit rows need a reporting source** — the Week/Month rows render only from `UsageInjected.loadLimits`, which reads [`dsh-host-token-plan-usage`](../../host/token-plan-usage/README.md); that reader reports one monthly window and no week, so the Week row stays hidden on this provider.
 - **The project total is a cached lower bound** — a session row without cached projection values (or absent from the session list) contributes nothing, and cached rows trail the live fold until their next checkpoint.
 - **The session total names billed assistant and compaction traffic** — `tokenUsageByModel` folds assistant settlements and `compaction/summary` calls, so it exceeds `tokenUsage` by the summarizer's usage.
+- **The burn runway needs a sustained observation** — the reader holds the current period's first-seen usage in memory and reports the `≈{days}d` figure only after six hours of successful polls at a positive rate; a Host restart or a plan-period change resets the observation, and the figure returns only after the gate re-arms.
+- **Plan dates follow the provider's calendar** — `daysUntilReset` compares the naive period end against the Host clock in `Asia/Shanghai` (the console renders its plan dates in 北京时间) and the browser only slices its `MM-DD`; a provider calendar elsewhere stays internally consistent at one zone constant.
 
 **Runtime invariant:** No companion is published. Every displayed figure derives from host-owned projections and lists, the meter holds no state of its own, and its single slot registration proves disposal through the HMR-safety spec.
 
