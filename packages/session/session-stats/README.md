@@ -48,9 +48,11 @@ Mount the plugin beside the session store and the projection registry when clien
 
 Every field is 0 until its first contributing event; the composed registry always serves the key, so clients read the value rather than key presence. Clients render whole-log figures through the projection seam's snapshot and change feed; the reference consumer is the web chat stats strip, whose window fold mirrors these field names as its no-unit fallback.
 
+The sibling `modelLatency` key carries recent model-call latencies: one `{ at, ms }` sample per assembled assistant message at its message-source route, holding the durable event time and the `step/start` → `assistant/message` wall time. The fold retains the newest `LATENCY_SAMPLE_LIMIT` samples per route, so a display averages any recent window at render time; a cancelled step assembles no message and contributes no sample, and an idle model contributes nothing at all.
+
 ### Failures and recovery
 
-The unit is inert without the projection registry: `inject` keeps the fiber pending and nothing registers, so other assemblies lack the `sessionStats` key. Unmounting the plugin removes the key, because registrations are effects on the mounting fiber. A crash-interrupted step counts after the session reloads, when crash recovery appends its synthetic `step/end`.
+The units are inert without the projection registry: `inject` keeps the fiber pending and nothing registers, so other assemblies lack the `sessionStats` and `modelLatency` keys. Unmounting the plugin removes both keys, because registrations are effects on the mounting fiber. A crash-interrupted step counts after the session reloads, when crash recovery appends its synthetic `step/end`.
 
 -----
 
@@ -72,6 +74,7 @@ The unit is a pure fold over committed session events: `step/end` is the counted
 |---|---|
 | [`src/index.ts`](src/index.ts) | Plugin entry: `inject`, unit registration on the mounting fiber |
 | [`src/projection.ts`](src/projection.ts) | The fold: state shape, per-event transitions, wire view |
+| [`src/latency-projection.ts`](src/latency-projection.ts) | The per-route latency ring fold and its bounded retention |
 | [`src/types.ts`](src/types.ts) | One home of the `sessionStats` projection-key declaration and field types |
 
 ### Data model

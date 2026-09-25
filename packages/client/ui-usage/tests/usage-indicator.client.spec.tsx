@@ -200,6 +200,54 @@ describe('UsageIndicator', () => {
     expect(view.container.textContent).toBe('')
   })
 
+  it('shows the current model latency for both windows and hides windows without calls', () => {
+    const now = Date.now()
+    const minute = 60_000
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+        modelSelection: { lastUsed: { provider: 'mock', model: 'a' }, next: null },
+        modelLatency: {
+          routes: [{
+            provider: 'mock',
+            model: 'a',
+            samples: [
+              { at: now - 2 * 60 * minute, ms: 9_900 },
+              { at: now - 30 * minute, ms: 2_400 },
+              { at: now - minute, ms: 1_200 },
+            ],
+          }],
+        },
+      },
+    })
+    // The trigger carries the 15-minute figure beside the session total.
+    expect(view.getByRole('button', { name: /tok/ }).textContent).toContain('1.2s')
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    expect(panel.textContent).toContain('延迟 15 分钟')
+    expect(panel.textContent).toContain('延迟 1 小时')
+    expect(panel.textContent).toContain('1.8s')
+  })
+
+  it('shows no latency figure for an idle model or one with no window samples', () => {
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+        modelSelection: { lastUsed: { provider: 'mock', model: 'b' }, next: null },
+        modelLatency: {
+          routes: [{ provider: 'mock', model: 'a', samples: [{ at: Date.now(), ms: 1_200 }] }],
+        },
+      },
+    })
+    expect(view.getByRole('button', { name: /tok/ }).textContent).toBe('10 tok')
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    expect(panel.textContent).not.toContain('延迟 15 分钟')
+    expect(panel.textContent).not.toContain('延迟 1 小时')
+  })
+
   it('reads the English dictionary', async () => {
     const view = mount({
       projections: {

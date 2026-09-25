@@ -11,11 +11,13 @@ import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 // Type-only: pulls the `tokenUsage`, `tokenUsageByModel`, and `modelSelection` key merges.
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@deepseek-ai/dsh-token-meter/client'
+// Type-only: pulls the `modelLatency` projection key merge.
+import type {} from '@deepseek-ai/dsh-session-stats/client'
 import { Tooltip, useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { UsageInjected, UsageLimit } from './contract.ts'
 import { NS } from './locales.ts'
-import { bucketTotal, deriveUsageTotals, limitPercent } from './usage.ts'
-import { formatTokens } from './format.ts'
+import { bucketTotal, deriveUsageTotals, limitPercent, windowLatency } from './usage.ts'
+import { formatLatency, formatTokens } from './format.ts'
 import css from './UsageIndicator.module.css'
 
 /** Route tint classes in bar-segment order; each also tints its panel swatch. */
@@ -36,9 +38,17 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
   const split = useProjection('tokenUsageByModel')
   const totals = useProjection('tokenUsage')
   const selection = useProjection('modelSelection')
+  const latency = useProjection('modelLatency')
   const byId = useSessions(state => state)
   const workspaces = useWorkspaces(state => state)
   const [limits, setLimits] = useState<readonly UsageLimit[]>([])
+  const current = selection?.next ?? selection?.lastUsed ?? undefined
+  // Windows average at display time over durable sample timestamps: an idle
+  // model contributes no samples, so its quiet time never dilutes a figure.
+  const latencyWindows = useMemo(() => ({
+    recent: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
+    hour: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
+  }), [latency, current])
   const usage = useMemo(
     () => deriveUsageTotals({ split, totals }, byId, workspaces, sessionId),
     [split, totals, byId, workspaces, sessionId],
@@ -88,7 +98,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
 
   if (usage.session === undefined || usage.session === 0) return null
   const reading = t('count', { count: formatTokens(usage.session, t) })
-  const current = selection?.next ?? selection?.lastUsed ?? undefined
+  const latencyNote = latencyWindows.recent === undefined ? '' : ` · ${formatLatency(latencyWindows.recent, t)}`
   const routeLabel = (row: { provider: string; model: string }): string =>
     row.provider === '' && row.model === '' ? t('unknown') : `${row.provider}/${row.model}`
   const mixTotal = usage.models.reduce((total, row) => total + bucketTotal(row), 0)
@@ -120,7 +130,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
                 />
               ))}
           </span>
-          <span>{reading}</span>
+          <span>{reading}{latencyNote}</span>
         </button>
       </Tooltip>
       {open && createPortal(
@@ -140,6 +150,18 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
               <div className={css.row}>
                 <dt>{t('panel.project')}</dt>
                 <dd>{t('count', { count: formatTokens(usage.project, t) })}</dd>
+              </div>
+            )}
+            {latencyWindows.recent !== undefined && (
+              <div className={css.row}>
+                <dt>{t('panel.latency15')}</dt>
+                <dd>{formatLatency(latencyWindows.recent, t)}</dd>
+              </div>
+            )}
+            {latencyWindows.hour !== undefined && (
+              <div className={css.row}>
+                <dt>{t('panel.latency60')}</dt>
+                <dd>{formatLatency(latencyWindows.hour, t)}</dd>
               </div>
             )}
             {limitRows.map(({ limit, percent }) => {

@@ -86,3 +86,29 @@ export function deriveUsageTotals(
 export function limitPercent(limit: UsageLimit): number | undefined {
   return limit.limitTokens > 0 ? Math.round(limit.usedTokens * 100 / limit.limitTokens) : undefined
 }
+
+/**
+ * Average model-call latency of one route inside a recent window.
+ *
+ * Only calls that ran contribute: samples exist per assembled message, so an
+ * idle model dilutes nothing and a window without samples reports no average.
+ * @param routes - the latency rings carried by the `modelLatency` projection.
+ * @param provider - route provider (the model in use).
+ * @param model - route model (the model in use).
+ * @param now - display-time clock, epoch ms.
+ * @param windowMs - window length behind `now`.
+ * @returns average latency in ms, or undefined without in-window samples.
+ */
+export function windowLatency(
+  routes: readonly { provider: string; model: string; samples: readonly { at: number; ms: number }[] }[] | undefined,
+  provider: string | undefined,
+  model: string | undefined,
+  now: number,
+  windowMs: number,
+): number | undefined {
+  if (routes === undefined || provider === undefined || model === undefined) return undefined
+  const route = routes.find(candidate => candidate.provider === provider && candidate.model === model)
+  const samples = route?.samples.filter(sample => sample.at >= now - windowMs) ?? []
+  if (samples.length === 0) return undefined
+  return Math.round(samples.reduce((total, sample) => total + sample.ms, 0) / samples.length)
+}

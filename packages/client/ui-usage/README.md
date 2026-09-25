@@ -28,7 +28,7 @@ Mount this plugin when the Web composition should show token consumption without
 
 ### Reading the numbers
 
-The session total sums the `tokenUsageByModel` route rows (assistant settlements plus compaction summarizer calls). The project total sums the same figures across every session of the workspace the current session belongs to, taking each other session's cached projection values from the session list. Limit rows are whole percentages of provider-reported windows, clamped in the bar only; a route with no claim is named by the shared `unknown` label.
+The session total sums the `tokenUsageByModel` route rows (assistant settlements plus compaction summarizer calls). The project total sums the same figures across every session of the workspace the current session belongs to, taking each other session's cached projection values from the session list. Limit rows are whole percentages of provider-reported windows, clamped in the bar only; a route with no claim is named by the shared `unknown` label. Latency figures average the current model's `modelLatency` samples over the last 15 minutes and hour — only calls that ran contribute, so an idle model reports no figure and dilutes nothing.
 
 ### Composition
 

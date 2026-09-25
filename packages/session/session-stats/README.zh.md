@@ -48,9 +48,11 @@ kind: "package-reference"
 
 每个字段在首个贡献事件之前均为 0；已装配的注册表恒提供该键，因此客户端读取值本身，而非键的存在性。客户端通过投影 seam 的快照与变更流渲染全日志数字；参考消费者是 Web 聊天统计条，其窗口折叠以相同字段名充当无单元时的回退。
 
+同级的 `modelLatency` 键携带最近的模型调用延迟：每条已组装的 assistant 消息在其消息来源路由上产生一个 `{ at, ms }` 样本，分别记录持久事件时间与 `step/start` → `assistant/message` 的墙钟时间。折叠为每条路由保留最新的 `LATENCY_SAMPLE_LIMIT` 个样本，因此显示层可在渲染时对任意近期窗口求平均；被取消的步不组装消息、不贡献样本，空闲的模型完全不贡献。
+
 ### 失败与恢复
 
-没有投影注册表时单元是惰性的：`inject` 使 fiber 保持挂起，不注册任何内容，因此其他装配缺少 `sessionStats` 键。卸载插件会移除该键，因为注册是挂载 fiber 上的 effect。被崩溃打断的步在会话重新加载后计入，届时崩溃恢复补写合成的 `step/end`。
+没有投影注册表时单元是惰性的：`inject` 使 fiber 保持挂起，不注册任何内容，因此其他装配缺少 `sessionStats` 与 `modelLatency` 键。卸载插件会移除这两个键，因为注册是挂载 fiber 上的 effect。被崩溃打断的步在会话重新加载后计入，届时崩溃恢复补写合成的 `step/end`。
 
 -----
 
@@ -72,6 +74,7 @@ kind: "package-reference"
 |---|---|
 | [`src/index.ts`](src/index.ts) | 插件入口：`inject`、在挂载 fiber 上注册单元 |
 | [`src/projection.ts`](src/projection.ts) | 折叠：状态形状、逐事件转换、wire 视图 |
+| [`src/latency-projection.ts`](src/latency-projection.ts) | 按路由的延迟样本环折叠及其有界保留 |
 | [`src/types.ts`](src/types.ts) | `sessionStats` 投影键声明与字段类型的唯一归属 |
 
 ### 数据模型

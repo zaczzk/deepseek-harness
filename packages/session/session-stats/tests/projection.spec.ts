@@ -82,11 +82,14 @@ describe('sessionStats projection unit (registry drive)', () => {
     // counts, so each closed step notifies twice with the step/end value last.
     const counted = changes.filter(change => (change.value as SessionStatsProjection).steps > 0
       || change.seq === firstSeq)
-    expect(changes.every(change => change.key === 'sessionStats')).toBe(true)
+    // Both registered units report through the feed; only `sessionStats` rows
+    // are this unit's assertions, and `modelLatency` rides alongside them.
+    expect(changes.every(change => change.key === 'sessionStats' || change.key === 'modelLatency')).toBe(true)
     expect(counted.map(change => ({ seq: change.seq, value: change.value }))).toContainEqual(
       { seq: firstSeq, value: totals({ turns: 1, steps: 1 }) },
     )
-    expect(changes.at(-1)).toEqual({ key: 'sessionStats', value: totals({ turns: 2, steps: 3 }), seq: thirdSeq })
+    expect(changes.filter(change => change.key === 'sessionStats').at(-1))
+      .toEqual({ key: 'sessionStats', value: totals({ turns: 2, steps: 3 }), seq: thirdSeq })
     const snapshot = ctx.sessionProjections.snapshot(session)
     expect(snapshot.values.sessionStats).toEqual(totals({ turns: 2, steps: 3 }))
     expect(snapshot.asOfSeq).toBe(session.seq - 1)

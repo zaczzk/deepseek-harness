@@ -42,5 +42,37 @@ declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionMap {
     /** Whole-log turn/step counts and wall times; see {@link SessionStatsProjection}. */
     sessionStats: SessionStatsProjection
+    /** Recent per-route model-call latencies; see {@link ModelLatencyProjection}. */
+    modelLatency: ModelLatencyProjection
   }
+}
+
+/** One model call's observed latency sample. */
+export interface LatencySample {
+  /** Wall-clock moment of the settling message (durable event time, epoch ms). */
+  at: number
+  /** Model call latency (`step/start` → `assistant/message`), ms. */
+  ms: number
+}
+
+/** Recent latency samples of one billed provider/model route. */
+export interface ModelLatencyRoute {
+  /** Provider of the settling message's source. */
+  provider: string
+  /** Model of the settling message's source. */
+  model: string
+  /** Samples in oldest-first order, bounded to the fold's retention. */
+  samples: readonly LatencySample[]
+}
+
+/**
+ * Recent model-call latencies by route, bounded to the newest samples so a
+ * display can average any recent window without replaying the log. Samples
+ * exist only for calls that ran: an idle model contributes nothing, and the
+ * timestamps ride the durable log, so windowing at display time changes no
+ * fold.
+ */
+export interface ModelLatencyProjection {
+  /** Routes in first-sampled order. */
+  routes: readonly ModelLatencyRoute[]
 }
