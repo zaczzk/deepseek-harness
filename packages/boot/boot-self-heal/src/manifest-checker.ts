@@ -10,6 +10,24 @@ import type { BootHealthIssue } from './types.ts'
 const CLIENT_BUILD_RECORD_REL = '.dsh-build/client-build-environment.json'
 
 /**
+ * Locate the monorepo root by walking up from the provided directory looking for pnpm-workspace.yaml.
+ * @param startDir - initial directory to probe.
+ * @returns absolute path to repository root, or null if outside a workspace.
+ */
+export function findRepoRoot(startDir: string): string | null {
+  let current = resolve(startDir)
+  while (current) {
+    if (existsSync(join(current, 'pnpm-workspace.yaml'))) {
+      return current
+    }
+    const parent = resolve(current, '..')
+    if (parent === current) break
+    current = parent
+  }
+  return null
+}
+
+/**
  * Inspect client build records, client bundle files, and common temp artifacts.
  * @param rootDir - repository root directory.
  * @returns detected boot health issues.
@@ -118,6 +136,38 @@ export function inspectBootHealth(rootDir: string): BootHealthIssue[] {
     }
   }
 
+  // Verify bundle cordis.patch.yml plugins are present in package.json dependencies
+  const webAppDir = resolve(rootDir, 'packages/bundle/web-app')
+  const webPatchPath = join(webAppDir, 'cordis.patch.yml')
+  const webPkgPath = join(webAppDir, 'package.json')
+  if (existsSync(webPatchPath) && existsSync(webPkgPath)) {
+    try {
+      const patchContent = readFileSync(webPatchPath, 'utf8')
+      const pkgJson = JSON.parse(readFileSync(webPkgPath, 'utf8')) as {
+        name?: string
+        dependencies?: Record<string, string>
+      }
+      const deps = pkgJson.dependencies ?? {}
+      const selfName = pkgJson.name
+      const pluginMatches = patchContent.matchAll(/name:\s*['"](@deepseek-ai\/dsh-[a-z0-9-]+)['"]/g)
+      for (const match of pluginMatches) {
+        const pkgName = match[1]
+        if (pkgName !== undefined && pkgName !== selfName && deps[pkgName] === undefined) {
+          issues.push({
+            code: 'MISSING_PLUGIN_DEPENDENCY',
+            message: `Bundle web-app declares plugin ${pkgName} in cordis.patch.yml but is missing from package.json dependencies.`,
+            target: 'packages/bundle/web-app/package.json',
+            autoFixable: true,
+            remediationAction: 'INSTALL_DEPENDENCIES',
+          })
+          break
+        }
+      }
+    } catch {
+      // Ignore unparseable patch or package.json
+    }
+  }
+
   // Check for node temp lock files if on Windows
   if (process.platform === 'win32') {
     const tempDir = process.env.TEMP || process.env.TMP
@@ -143,3 +193,4 @@ export function inspectBootHealth(rootDir: string): BootHealthIssue[] {
 
   return issues
 }
+

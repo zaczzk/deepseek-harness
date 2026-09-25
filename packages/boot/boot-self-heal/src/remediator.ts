@@ -6,6 +6,7 @@
 import { spawn } from 'node:child_process'
 import { existsSync, readdirSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
+import { findRepoRoot } from './manifest-checker.ts'
 import type { BootHealthIssue, RemediationAttempt } from './types.ts'
 
 /**
@@ -20,6 +21,7 @@ export async function executeRemediations(
 ): Promise<RemediationAttempt[]> {
   const attempts: RemediationAttempt[] = []
   const processedActions = new Set<string>()
+  const resolvedRoot = findRepoRoot(rootDir) ?? rootDir
 
   for (const issue of issues) {
     if (!issue.autoFixable) {
@@ -39,7 +41,7 @@ export async function executeRemediations(
 
     switch (issue.remediationAction) {
       case 'BUILD_CLIENT': {
-        const result = await runBuildCommand(rootDir)
+        const result = await runBuildCommand(resolvedRoot)
         attempts.push({
           issue,
           success: result.success,
@@ -57,7 +59,16 @@ export async function executeRemediations(
         break
       }
       case 'REBUILD_WORKSPACE': {
-        const result = await runBuildCommand(rootDir)
+        const result = await runBuildCommand(resolvedRoot)
+        attempts.push({
+          issue,
+          success: result.success,
+          details: result.output,
+        })
+        break
+      }
+      case 'INSTALL_DEPENDENCIES': {
+        const result = await runInstallCommand(resolvedRoot)
         attempts.push({
           issue,
           success: result.success,
@@ -80,6 +91,56 @@ export async function executeRemediations(
 }
 
 /**
+ * Run pnpm install in the repository root asynchronously.
+ * @param rootDir - workspace root directory.
+ * @returns promise resolving to success flag and output string.
+ */
+function runInstallCommand(rootDir: string): Promise<{ success: boolean; output: string }> {
+  return new Promise((resolve) => {
+    const isWindows = process.platform === 'win32'
+    const command = isWindows ? 'cmd.exe' : 'pnpm'
+    const args = isWindows ? ['/c', 'set CI=true&& pnpm install --no-frozen-lockfile'] : ['install', '--no-frozen-lockfile']
+
+    const proc = spawn(command, args, {
+      cwd: rootDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, CI: 'true' },
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    proc.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString('utf8')
+    })
+    proc.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf8')
+    })
+
+    proc.on('error', (err) => {
+      resolve({
+        success: false,
+        output: `Failed to spawn install process: ${err.message}`,
+      })
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve({
+          success: true,
+          output: stdout.slice(-1000) || 'Install completed successfully.',
+        })
+      } else {
+        resolve({
+          success: false,
+          output: (stderr || stdout).slice(-2000) || `Install exited with code ${String(code)}`,
+        })
+      }
+    })
+  })
+}
+
+/**
  * Run pnpm run build in the repository root asynchronously.
  * @param rootDir - workspace root directory.
  * @returns promise resolving to success flag and output string.
@@ -88,7 +149,7 @@ function runBuildCommand(rootDir: string): Promise<{ success: boolean; output: s
   return new Promise((resolve) => {
     const isWindows = process.platform === 'win32'
     const command = isWindows ? 'cmd.exe' : 'pnpm'
-    const args = isWindows ? ['/c', 'pnpm run build'] : ['run', 'build']
+    const args = isWindows ? ['/c', 'set CI=true&& pnpm run build'] : ['run', 'build']
 
     const proc = spawn(command, args, {
       cwd: rootDir,

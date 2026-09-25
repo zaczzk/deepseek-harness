@@ -12,6 +12,7 @@ export type BootIssueCode =
   | 'CORRUPT_CLIENT_RECORD'
   | 'MISSING_CLIENT_BUNDLE'
   | 'LOCK_FILE_CONFLICT'
+  | 'MISSING_PLUGIN_DEPENDENCY'
 
 /** Remediation actions available to restore boot integrity. */
 export type RemediationAction =
@@ -19,6 +20,7 @@ export type RemediationAction =
   | 'REBUILD_WORKSPACE'
   | 'CLEAN_TEMP_LOCKS'
   | 'SWITCH_RESCUE_PROFILE'
+  | 'INSTALL_DEPENDENCIES'
 
 /** One detected boot integrity issue. */
 export interface BootHealthIssue {

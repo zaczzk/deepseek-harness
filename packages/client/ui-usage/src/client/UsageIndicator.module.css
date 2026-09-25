@@ -152,3 +152,19 @@
   border-radius: 1px;
   background: var(--dsw-static-deepseek-450);
 }
+
+.limitWarn {
+  background: var(--dsw-static-amber-450, #f59e0b);
+}
+
+.limitDanger {
+  background: var(--dsw-static-red-450, #ef4444);
+}
+
+.triggerWarn {
+  color: var(--dsw-static-amber-450, #f59e0b);
+}
+
+.triggerDanger {
+  color: var(--dsw-static-red-450, #ef4444);
+}

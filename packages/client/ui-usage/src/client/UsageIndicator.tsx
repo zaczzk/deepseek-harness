@@ -98,12 +98,17 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
     width: bucketTotal(row) * 100 / mixTotal,
   }))
 
+  const maxPercent = limitRows.reduce((max, r) => Math.max(max, r.percent), 0)
+  const isDanger = maxPercent >= 90 || (usage.session !== undefined && usage.session >= 100_000)
+  const isWarn = !isDanger && (maxPercent >= 80 || (usage.session !== undefined && usage.session >= 60_000))
+  const triggerTone = isDanger ? css.triggerDanger : isWarn ? css.triggerWarn : ''
+
   return (
     <span ref={rootRef} className={css.root}>
       <Tooltip label={t('trigger.aria', { tokens: formatTokens(usage.session, t) })} side="bottom" delayMs={200} disabled={open}>
         <button
           type="button"
-          className={css.trigger}
+          className={`${css.trigger} ${triggerTone}`.trim()}
           aria-label={t('trigger.aria', { tokens: formatTokens(usage.session, t) })}
           aria-haspopup="dialog"
           aria-expanded={open}
@@ -144,6 +149,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
             )}
             {limitRows.map(({ limit, percent }) => {
               const period = limit.period === 'week' ? t('panel.week') : t('panel.month')
+              const fillTone = percent >= 90 ? css.limitDanger : percent >= 80 ? css.limitWarn : ''
               return (
                 <div key={limit.period} className={css.row}>
                   <dt>{period}</dt>
@@ -153,7 +159,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
                       role="img"
                       aria-label={t('limit.aria', { percent, period })}
                     >
-                      <span className={css.limitFill} style={{ width: `${Math.min(100, percent)}%` }} />
+                      <span className={`${css.limitFill} ${fillTone}`.trim()} style={{ width: `${Math.min(100, percent)}%` }} />
                     </span>
                     <span>{`${percent}%`}</span>
                   </dd>

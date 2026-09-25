@@ -96,4 +96,25 @@ describe('boot-self-heal manifest inspection and service', () => {
       rmSync(tempDir, { recursive: true, force: true })
     }
   })
+
+  it('detects missing plugin dependency declared in bundle cordis.patch.yml', () => {
+    const tempDir = join(tmpdir(), `dsh-test-bundle-dep-${String(Date.now())}`)
+    const webAppDir = join(tempDir, 'packages/bundle/web-app')
+    mkdirSync(webAppDir, { recursive: true })
+    writeFileSync(
+      join(webAppDir, 'cordis.patch.yml'),
+      "- id: test-plugin\n  name: '@deepseek-ai/dsh-client-ui-missing'\n",
+    )
+    writeFileSync(
+      join(webAppDir, 'package.json'),
+      JSON.stringify({ name: '@deepseek-ai/dsh-bundle-web-app', dependencies: {} }),
+    )
+    try {
+      const issues = inspectBootHealth(tempDir)
+      expect(issues.some(i => i.code === 'MISSING_PLUGIN_DEPENDENCY')).toBe(true)
+      expect(issues.some(i => i.remediationAction === 'INSTALL_DEPENDENCIES')).toBe(true)
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
 })

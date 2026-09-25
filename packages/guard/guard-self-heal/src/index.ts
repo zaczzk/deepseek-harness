@@ -50,8 +50,7 @@ function extractTextFromBlocks(blocks: readonly ContentBlock[] | undefined): str
 /** Check whether a tool name is monitored for errors. */
 function isToolMonitored(toolName: string, monitoredTools: readonly string[]): boolean {
   if (monitoredTools.length === 0) {
-    // Default: monitor command and execution tools
-    return /bash|pwsh|cmd|terminal|exec|run_code|job/i.test(toolName)
+    return true
   }
   return monitoredTools.includes(toolName)
 }
@@ -122,7 +121,7 @@ export function apply(ctx: Context, config: Config): void {
       ...downstream,
       additionalContexts: prependAdvice(adviceMessage, downstream.additionalContexts),
     }
-  })
+  }, { prepend: true })
 }
 
 export {

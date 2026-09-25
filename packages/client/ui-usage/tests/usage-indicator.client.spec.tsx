@@ -120,6 +120,26 @@ describe('UsageIndicator', () => {
     expect(panel.getAttribute('aria-label')).toBe('代币用量')
   })
 
+  it('applies warning and danger classes when limits exceed soft thresholds', async () => {
+    const view = mount({
+      projections: { tokenUsageByModel: split([row('mock', 'a', 10, 0)]), tokenUsage: buckets(10, 0) },
+      limits: [
+        { period: 'week', usedTokens: 85, limitTokens: 100 },
+        { period: 'month', usedTokens: 95, limitTokens: 100 },
+      ],
+    })
+    const trigger = view.getByRole('button', { name: /tok/ })
+    fireEvent.click(trigger)
+    const panel = view.queryByRole('dialog')!
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain('85%')
+    })
+    const fills = panel.querySelectorAll('span[role="img"] span')
+    expect(fills[0]?.className).toContain('limitWarn')
+    expect(fills[1]?.className).toContain('limitDanger')
+    expect(trigger.className).toContain('triggerDanger')
+  })
+
   it('lists billed routes and marks the current model', () => {
     const view = mount({
       projections: {

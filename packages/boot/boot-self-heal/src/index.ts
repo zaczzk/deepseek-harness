@@ -8,6 +8,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { createBootSelfHealService } from './service.ts'
+import { findRepoRoot } from './manifest-checker.ts'
 import type { BootHealthIssue, BootIssueCode, BootSelfHealReport, BootSelfHealService, RemediationAction, RemediationAttempt } from './types.ts'
 
 export const name = 'boot-self-heal'
@@ -39,7 +40,14 @@ export function apply(ctx: Context, config: Config): void {
 
   if (config.enabled === false) return
 
-  const root = config.rootDir && config.rootDir.length > 0 ? config.rootDir : process.cwd()
+  const resolvedRoot = config.rootDir && config.rootDir.length > 0
+    ? config.rootDir
+    : findRepoRoot(process.cwd())
+
+  // If outside a monorepo workspace (e.g. running in an isolated temp test directory), skip monorepo inspection
+  if (!resolvedRoot) return
+
+  const root = resolvedRoot
 
   // Run preflight check on startup asynchronously
   queueMicrotask(async () => {
