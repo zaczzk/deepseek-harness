@@ -90,13 +90,20 @@ const limitsOf = async (origin: string): Promise<TokenPlanUsageResponse['limits'
 const jsonResponse = (body: unknown): Promise<Response> =>
   Promise.resolve(new Response(JSON.stringify(body), { status: 200 }))
 
+/** The console's live report shape around one monthly-quota row. */
+const monthReport = (used: number, limit: number): unknown => ({
+  code: 0,
+  message: '',
+  data: { monthUsage: { items: [{ name: 'month_total_token', used, limit }] } },
+})
+
 describe('token-plan usage route', () => {
   it('serves the polled report as one monthly window', async () => {
     const seen: { url: string | undefined; cookie: string | undefined } = { url: undefined, cookie: undefined }
     const report = vi.fn((url: string, init?: RequestInit) => {
       seen.url = url
       seen.cookie = (init?.headers as Record<string, string>).cookie
-      return jsonResponse({ used: 42, limit: 100, resetTime: '2026-10-01 00:00' })
+      return jsonResponse(monthReport(42, 100))
     })
     vi.stubGlobal('fetch', report)
     const origin = await boot('cookie-value')
@@ -105,7 +112,6 @@ describe('token-plan usage route', () => {
         period: 'month',
         usedTokens: 42,
         limitTokens: 100,
-        resetsAt: '2026-10-01 00:00',
       }])
     })
     expect(seen).toEqual({
@@ -117,7 +123,7 @@ describe('token-plan usage route', () => {
   it('re-polls the report on the configured interval', async () => {
     // Only the interval fakes: boot's file and listener work stays real.
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
-    const report = vi.fn(() => jsonResponse({ used: 1, limit: 2 }))
+    const report = vi.fn(() => jsonResponse(monthReport(1, 2)))
     vi.stubGlobal('fetch', report)
     await boot('cookie-value')
     await vi.advanceTimersByTimeAsync(0)
@@ -140,7 +146,7 @@ describe('token-plan usage route', () => {
     let offline = false
     vi.stubGlobal('fetch', vi.fn(() => offline
       ? Promise.reject(new Error('console unreachable'))
-      : jsonResponse({ used: 7, limit: 10 })))
+      : jsonResponse(monthReport(7, 10))))
     const origin = await boot('cookie-value')
     await vi.waitFor(async () => {
       expect(await limitsOf(origin)).toHaveLength(1)
@@ -154,7 +160,7 @@ describe('token-plan usage route', () => {
     const seen: { cookie: string | undefined } = { cookie: undefined }
     const report = vi.fn((_url: string, init?: RequestInit) => {
       seen.cookie = (init?.headers as Record<string, string>).cookie
-      return jsonResponse({ used: 1, limit: 2 })
+      return jsonResponse(monthReport(1, 2))
     })
     vi.stubGlobal('fetch', report)
     const origin = await boot('')

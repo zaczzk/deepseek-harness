@@ -1,11 +1,11 @@
 /**
  * Pure parsing of the console's Token Plan usage report into meter windows.
  *
- * The console's plan-usage contract names its two counts `used` and `limit`
- * (`{{used}} / {{limit}}` in its own usage line); the window resets monthly,
- * so the report becomes one `month` window. A report that does not carry
- * those counts is not a usage report at all: parsing returns null and the
- * caller reports absence instead of guessing.
+ * The report nests its counters under `data.monthUsage.items`; each row names
+ * one counter and carries the console's own `used`/`limit` counts. The row
+ * named `month_total_token` is the monthly quota, so the report becomes one
+ * `month` window. A report without that row is not a usage report at all:
+ * parsing returns null and the caller reports absence instead of guessing.
  */
 
 import type { UsageLimitReport } from './shared.ts'
@@ -17,16 +17,20 @@ import type { UsageLimitReport } from './shared.ts'
  */
 export function parseUsageLimits(report: unknown): UsageLimitReport[] | null {
   if (typeof report !== 'object' || report === null) return null
-  const { used, limit, resetTime } = report as { used?: unknown; limit?: unknown; resetTime?: unknown }
+  const data = (report as { data?: unknown }).data
+  if (typeof data !== 'object' || data === null) return null
+  const monthUsage = (data as { monthUsage?: unknown }).monthUsage
+  if (typeof monthUsage !== 'object' || monthUsage === null) return null
+  const items = (monthUsage as { items?: unknown }).items
+  if (!Array.isArray(items)) return null
+  const row = items.find(item => typeof item === 'object'
+    && item !== null
+    && (item as { name?: unknown }).name === 'month_total_token')
+  if (row === undefined) return null
+  const { used, limit } = row as { used?: unknown; limit?: unknown }
   if (typeof used !== 'number' || !Number.isInteger(used) || used < 0) return null
   if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) return null
-  if (resetTime !== undefined && typeof resetTime !== 'string') return null
-  return [{
-    period: 'month',
-    usedTokens: used,
-    limitTokens: limit,
-    ...resetTime === undefined ? {} : { resetsAt: resetTime },
-  }]
+  return [{ period: 'month', usedTokens: used, limitTokens: limit }]
 }
 
 /**

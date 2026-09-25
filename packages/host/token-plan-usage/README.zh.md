@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 摘要
 
-本宿主插件拥有用量指示器不应看到的提供方会话。它用保存的会话 cookie 轮询控制台的 Token Plan 用量端点，把报告中的 `used`/`limit` 计数解析为一个月度用量窗口，并在组合的 connection 信任护栏之后于 `/dsh/token-plan/usage` 提供最新的已报告窗口。cookie 不离开宿主，也从不写入日志；不再携带控制台计数的报告会被拒绝（日志只记录其字段名），此前的窗口继续提供。
+本宿主插件拥有用量指示器不应看到的提供方会话。它用保存的会话 cookie 轮询控制台的 Token Plan 用量端点，把报告 `data.monthUsage.items` 中的月度配额行解析为一个月度用量窗口，并在组合的 connection 信任护栏之后于 `/dsh/token-plan/usage` 提供最新的已报告窗口。cookie 不离开宿主，也从不写入日志；不再携带控制台计数的报告会被拒绝（日志只记录其字段名），此前的窗口继续提供。
 
 ## 目录
 
@@ -86,6 +86,6 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - **一个提供方，一个窗口** — 读取器只解析控制台的 Token Plan 报告；那里不存在周窗口，网关的响应头也不报告用量上限，因此这些行保持隐藏。
-- **计数 schema 钉在控制台契约上** — `used`/`limit` 加可选 `resetTime`；漂移的报告记为缺席，日志只记录字段名，直到重新定向解析器。
+- **计数 schema 钉在控制台的实时报告上** — `data.monthUsage.items` 中的 `month_total_token` 行携带 `used`/`limit`；漂移的报告记为缺席，日志只记录字段名，直到重新定向解析器。
 
 **Runtime invariant:** 不发布 companion。轮询循环与其路由共享同一份在单一提交点发布的引用，connection 护栏与“解析或拒绝”规则由本包的 Loader 组合规格验证。

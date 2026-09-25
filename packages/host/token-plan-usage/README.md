@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-This host plugin owns the provider session the usage meter must not see. It polls the console's Token Plan usage endpoint with the stored session cookie, parses the report's `used`/`limit` counts into one monthly usage window, and serves the newest reported windows at `/dsh/token-plan/usage` behind the composition's connection trust fence. The cookie never leaves the Host and is never logged; a report that no longer carries the console counts is refused (its field names alone reach the log) and the previous window stays served.
+This host plugin owns the provider session the usage meter must not see. It polls the console's Token Plan usage endpoint with the stored session cookie, parses the report's `data.monthUsage.items` monthly-quota row into one monthly usage window, and serves the newest reported windows at `/dsh/token-plan/usage` behind the composition's connection trust fence. The cookie never leaves the Host and is never logged; a report that no longer carries the console counts is refused (its field names alone reach the log) and the previous window stays served.
 
 ## Table of Contents
 
@@ -86,6 +86,6 @@ None; this package neither assembles nor sends a provider request on the model's
 <a id="known-limitations-and-deferred-work"></a>
 
 - **One provider, one window** — the reader parses the console's Token Plan report only; no weekly window exists there, and no gateway reports usage caps in its response headers, so those rows stay hidden.
-- **The counts schema is pinned to the console contract** — `used`/`limit` with an optional `resetTime`; a drifted report reports absent and logs only its field names until the parser is retargeted.
+- **The counts schema is pinned to the live console report** — the `month_total_token` row of `data.monthUsage.items` carries `used`/`limit`; a drifted report reports absent and logs only its field names until the parser is retargeted.
 
 **Runtime invariant:** No companion is published. The poll loop and its route share one reference published at one commit point, and the connection fence plus the parse-or-refuse rule are asserted by this package's Loader-composition spec.
