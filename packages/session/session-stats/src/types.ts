@@ -53,6 +53,8 @@ export interface LatencySample {
   at: number
   /** Model call latency (`step/start` → `assistant/message`), ms. */
   ms: number
+  /** First-token latency, ms, clamped to `ms`; absent without a first-token record. */
+  ttftMs?: number | undefined
 }
 
 /** Recent latency samples of one billed provider/model route. */

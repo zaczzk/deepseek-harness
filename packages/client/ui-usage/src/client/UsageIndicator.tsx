@@ -13,11 +13,11 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/types'
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 // Type-only: pulls the `modelLatency` projection key merge.
 import type {} from '@deepseek-ai/dsh-session-stats/client'
-import { Tooltip, useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Tooltip, useAnchoredPosition, useDismissOnOutsidePointer, writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { UsageInjected, UsageReport } from './contract.ts'
 import { NS } from './locales.ts'
-import { bucketTotal, deriveUsageTotals, limitPercent, windowLatency, windowLatencyP95 } from './usage.ts'
-import { formatLatency, formatLatencyPair, formatPlanReset, formatRunway, formatTokens } from './format.ts'
+import { bucketTotal, deriveUsageTotals, limitPercent, windowLatency, windowLatencyP95, windowLatencyTtft } from './usage.ts'
+import { formatLatency, formatLatencyPair, formatLatencyTrio, formatPlanReset, formatRunway, formatTokens } from './format.ts'
 import css from './UsageIndicator.module.css'
 
 /** Route tint classes in bar-segment order; each also tints its panel swatch. */
@@ -51,8 +51,10 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
   const latencyWindows = useMemo(() => ({
     recent: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
     recentP95: windowLatencyP95(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
+    recentTtft: windowLatencyTtft(latency?.routes, current?.provider, current?.model, Date.now(), 15 * 60_000),
     hour: windowLatency(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
     hourP95: windowLatencyP95(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
+    hourTtft: windowLatencyTtft(latency?.routes, current?.provider, current?.model, Date.now(), 60 * 60_000),
   }), [latency, current])
   const usage = useMemo(
     () => deriveUsageTotals({ split, totals }, byId, workspaces, sessionId),
@@ -65,6 +67,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
     return percent === undefined ? [] : [{ limit, percent }]
   }), [report])
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState<string | undefined>(undefined)
   const rootRef = useRef<HTMLSpanElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
   const available = usage.session !== undefined && usage.session > 0
@@ -106,7 +109,7 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
   if (usage.session === undefined || usage.session === 0) return null
   const reading = t('count', { count: formatTokens(usage.session, t) })
   const latencyNote = latencyWindows.recent === undefined ? '' : ` · ${formatLatency(latencyWindows.recent, t)}`
-  const quotaNote = monthPercent === undefined ? '' : ` · ${String(monthPercent)}%`
+  const quotaNote = monthPercent === undefined || report.state !== 'ok' ? '' : ` · ${String(monthPercent)}%`
   const ariaLabel = monthPercent === undefined
     ? t('trigger.aria', { tokens: formatTokens(usage.session, t) })
     : t('trigger.aria.quota', { tokens: formatTokens(usage.session, t), percent: monthPercent })
@@ -121,6 +124,29 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
     tint: TINTS[index % TINTS.length],
     width: bucketTotal(row) * 100 / mixTotal,
   }))
+  // Ladder: average alone, then its tail, then its first token.
+  const latencyValue = (avg: number, p95: number | undefined, ttft: number | undefined): string => {
+    if (p95 === undefined) return formatLatency(avg, t)
+    return ttft === undefined
+      ? formatLatencyPair(avg, p95, t)
+      : formatLatencyTrio(avg, p95, ttft, t)
+  }
+  const rowValue = (rowKey: string, text: string): React.JSX.Element => (
+    <dd>
+      <span>{text}</span>
+      <button
+        type="button"
+        className={copied === rowKey ? `${css.copy} ${css.copyDone}` : css.copy}
+        aria-label={copied === rowKey ? t('row.copied') : t('row.copy')}
+        onClick={() => {
+          void writeClipboard(text)
+          setCopied(rowKey)
+        }}
+      >
+        {copied === rowKey ? '✓' : '⧉'}
+      </button>
+    </dd>
+  )
 
   return (
     <span ref={rootRef} className={css.root}>
@@ -155,31 +181,28 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
           role="dialog"
           aria-label={t('panel.title')}
         >
-          <dl className={css.rows}>
+          {report.state === 'expired' && <p className={css.expired}>{t('expired.action')}</p>}
+          <dl className={css.rows} hidden={report.state === 'expired'}>
             <div className={css.row}>
               <dt>{t('panel.session')}</dt>
-              <dd>{reading}</dd>
+              {rowValue('session', reading)}
             </div>
             {usage.project !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.project')}</dt>
-                <dd>{t('count', { count: formatTokens(usage.project, t) })}</dd>
+                {rowValue('project', t('count', { count: formatTokens(usage.project, t) }))}
               </div>
             )}
             {latencyWindows.recent !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.latency15')}</dt>
-                <dd>{latencyWindows.recentP95 === undefined
-                  ? formatLatency(latencyWindows.recent, t)
-                  : formatLatencyPair(latencyWindows.recent, latencyWindows.recentP95, t)}</dd>
+                {rowValue('latency15', latencyValue(latencyWindows.recent, latencyWindows.recentP95, latencyWindows.recentTtft))}
               </div>
             )}
             {latencyWindows.hour !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.latency60')}</dt>
-                <dd>{latencyWindows.hourP95 === undefined
-                  ? formatLatency(latencyWindows.hour, t)
-                  : formatLatencyPair(latencyWindows.hour, latencyWindows.hourP95, t)}</dd>
+                {rowValue('latency60', latencyValue(latencyWindows.hour, latencyWindows.hourP95, latencyWindows.hourTtft))}
               </div>
             )}
             {showProvider && limitRows.map(({ limit, percent }) => {
@@ -203,21 +226,21 @@ export function UsageIndicator(props: UsageIndicatorProps): React.JSX.Element | 
             {showProvider && report.credits !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.compensation')}</dt>
-                <dd>{t('count', { count: formatTokens(report.credits.usedTokens, t) })}</dd>
+                {rowValue('compensation', t('count', { count: formatTokens(report.credits.usedTokens, t) }))}
               </div>
             )}
             {showProvider && report.plan !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.plan')}</dt>
-                <dd>{report.plan.name}</dd>
+                {rowValue('plan', report.plan.name)}
               </div>
             )}
             {showProvider && report.plan !== undefined && (
               <div className={css.row}>
                 <dt>{t('panel.resets')}</dt>
-                <dd>{report.plan.burn === undefined
+                {rowValue('resets', report.plan.burn === undefined
                   ? formatPlanReset(report.plan.resetsAt)
-                  : `${formatPlanReset(report.plan.resetsAt)} · ${formatRunway(report.plan.burn.projectedDays, t)}`}</dd>
+                  : `${formatPlanReset(report.plan.resetsAt)} · ${formatRunway(report.plan.burn.projectedDays, t)}`)}
               </div>
             )}
           </dl>

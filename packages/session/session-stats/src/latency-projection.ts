@@ -13,6 +13,7 @@
  */
 
 import { z } from 'zod'
+import { assistantStreamFirstTokenTime } from '@deepseek-ai/dsh-llm'
 import type { ProjectionDefinition } from '@deepseek-ai/dsh-session-projection'
 // Import for the `modelLatency` SessionProjectionStateMap key merge.
 import type {} from './types.ts'
@@ -24,6 +25,7 @@ export const LATENCY_SAMPLE_LIMIT = 256
 const sampleSchema = z.object({
   at: z.number().nonnegative(),
   ms: z.number().nonnegative(),
+  ttftMs: z.number().nonnegative().optional(),
 }).strict()
 
 const routeSchema = z.object({
@@ -75,7 +77,7 @@ function credit(
 /** The `modelLatency` unit registered on `ctx.sessionProjections` (exported for the unit spec). */
 export const modelLatencyProjectionDefinition = {
   key: 'modelLatency',
-  stateVersion: 1,
+  stateVersion: 2,
   stateSchema: modelLatencyStateSchema,
   init: (): ModelLatencyState => ({ view: { routes: [] }, openStep: null }),
   apply: (state, event) => {
@@ -90,7 +92,18 @@ export const modelLatencyProjectionDefinition = {
         if (open === null || open.turn !== event.data.turn || open.step !== event.data.step) return state
         // One assembled message per step: closing the boundary means a
         // defensive duplicate cannot accrue twice.
-        const sample: LatencySample = { at: event.time, ms: Math.max(0, event.time - open.startTime) }
+        const ms = Math.max(0, event.time - open.startTime)
+        // The first-token helper reports an absolute stamp; the sample keeps
+        // a duration, clamped to the call it belongs to.
+        const firstToken = assistantStreamFirstTokenTime(event.data.stream)
+        const ttftMs = firstToken === undefined
+          ? undefined
+          : Math.min(Math.max(0, firstToken - open.startTime), ms)
+        const sample: LatencySample = {
+          at: event.time,
+          ms,
+          ...ttftMs === undefined ? {} : { ttftMs },
+        }
         const { provider, model } = event.data.message.source
         return {
           ...state,

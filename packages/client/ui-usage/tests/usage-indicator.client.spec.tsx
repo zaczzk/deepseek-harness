@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render } from '@testing-library/react'
 import type { SessionListState } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceSnapshot } from '@deepseek-ai/dsh-api-workspace-controller/client'
@@ -15,7 +15,19 @@ import { UsageIndicator, type UsageIndicatorProps } from '../src/client/UsageInd
 import type { UsageLimit, UsageReport } from '../src/client/contract.ts'
 import { en, zh } from '../src/client/locales.ts'
 
-afterEach(cleanup)
+/** Display-time clock behind every latency window in this file. */
+const NOW = Date.UTC(2026, 8, 25, 2, 10)
+
+beforeEach(() => {
+  // Windows fold at display time: pin that clock so no sample ever ages out.
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(NOW))
+})
+
+afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
+})
 
 const SID = SessionId('current')
 
@@ -202,7 +214,7 @@ describe('UsageIndicator', () => {
   })
 
   it('shows the current model latency for both windows and hides windows without calls', () => {
-    const now = Date.now()
+    const now = NOW
     const minute = 60_000
     const view = mount({
       projections: {
@@ -238,7 +250,7 @@ describe('UsageIndicator', () => {
         tokenUsage: buckets(10, 0),
         modelSelection: { lastUsed: { provider: 'mock', model: 'b' }, next: null },
         modelLatency: {
-          routes: [{ provider: 'mock', model: 'a', samples: [{ at: Date.now(), ms: 1_200 }] }],
+          routes: [{ provider: 'mock', model: 'a', samples: [{ at: NOW, ms: 1_200 }] }],
         },
       },
     })
@@ -256,7 +268,7 @@ describe('UsageIndicator', () => {
         tokenUsage: buckets(10, 0),
         modelSelection: { lastUsed: { provider: 'mock', model: 'a' }, next: null },
         modelLatency: {
-          routes: [{ provider: 'mock', model: 'a', samples: Array.from({ length: 6 }, () => ({ at: Date.now(), ms: 1_200 })) }],
+          routes: [{ provider: 'mock', model: 'a', samples: Array.from({ length: 6 }, () => ({ at: NOW, ms: 1_200 })) }],
         },
       },
       limits: [{ period: 'month', usedTokens: 12_751_091_709, limitTokens: 38_000_000_000 }],
@@ -289,7 +301,33 @@ describe('UsageIndicator', () => {
     })
   })
 
-  it('keeps provider rows dark on an expired session', () => {
+  it('walks the latency ladder and reveals the copy affordance', async () => {
+    const view = mount({
+      projections: {
+        tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
+        tokenUsage: buckets(10, 0),
+        modelSelection: { lastUsed: { provider: 'mock', model: 'a' }, next: null },
+        modelLatency: {
+          routes: [{
+            provider: 'mock',
+            model: 'a',
+            samples: Array.from({ length: 6 }, () => ({ at: Date.now(), ms: 1_200, ttftMs: 240 })),
+          }],
+        },
+      },
+      translate: tEn,
+    })
+    fireEvent.click(view.getByRole('button', { name: /tok/ }))
+    const panel = view.queryByRole('dialog')!
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain('1.2s · p95 1.2s · ttft 240ms')
+    })
+    const copy = view.getAllByRole('button', { name: 'Copy value' })[0]!
+    fireEvent.click(copy)
+    expect(view.getAllByRole('button', { name: 'Copied' })).toHaveLength(1)
+  })
+
+  it('keeps provider rows dark on an expired session', async () => {
     const view = mount({
       projections: {
         tokenUsageByModel: split([row('mock', 'a', 10, 0)]),
@@ -305,6 +343,9 @@ describe('UsageIndicator', () => {
     })
     fireEvent.click(view.getByRole('button', { name: /tok/ }))
     const panel = view.queryByRole('dialog')!
+    await vi.waitFor(() => {
+      expect(panel.textContent).toContain('Sign in to the console to see account usage')
+    })
     expect(panel.textContent).not.toContain('Month')
     expect(panel.textContent).not.toContain('Pro')
     expect(panel.textContent).not.toContain('Resets')

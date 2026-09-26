@@ -87,6 +87,16 @@ export function limitPercent(limit: UsageLimit): number | undefined {
   return limit.limitTokens > 0 ? Math.round(limit.usedTokens * 100 / limit.limitTokens) : undefined
 }
 
+/** One route's latency ring as the `modelLatency` projection carries it. */
+export interface LatencyRing {
+  /** Billed provider name; empty for unattributed traffic. */
+  provider: string
+  /** Billed model name; empty for unattributed traffic. */
+  model: string
+  /** Newest samples of this route, oldest first. */
+  samples: readonly { at: number; ms: number; ttftMs?: number | undefined }[]
+}
+
 /**
  * Average model-call latency of one route inside a recent window.
  *
@@ -100,7 +110,7 @@ export function limitPercent(limit: UsageLimit): number | undefined {
  * @returns average latency in ms, or undefined without in-window samples.
  */
 export function windowLatency(
-  routes: readonly { provider: string; model: string; samples: readonly { at: number; ms: number }[] }[] | undefined,
+  routes: readonly LatencyRing[] | undefined,
   provider: string | undefined,
   model: string | undefined,
   now: number,
@@ -127,7 +137,7 @@ export function windowLatency(
  * @returns nearest-rank p95 latency in ms, or undefined below five samples.
  */
 export function windowLatencyP95(
-  routes: readonly { provider: string; model: string; samples: readonly { at: number; ms: number }[] }[] | undefined,
+  routes: readonly LatencyRing[] | undefined,
   provider: string | undefined,
   model: string | undefined,
   now: number,
@@ -139,4 +149,32 @@ export function windowLatencyP95(
   if (samples.length < 5) return undefined
   const ordered = [...samples].map(sample => sample.ms).sort((a, b) => a - b)
   return ordered[Math.min(Math.max(Math.ceil(0.95 * ordered.length) - 1, 0), ordered.length - 1)]
+}
+
+/**
+ * Mean first-token latency of one route inside a recent window.
+ *
+ * The mean is the row's headline beside the average call latency; fewer than
+ * five first-token-bearing calls is too small a set, so this reports nothing
+ * and the row shows its shorter ladder step.
+ * @param routes - the latency rings carried by the `modelLatency` projection.
+ * @param provider - route provider (the model in use).
+ * @param model - route model (the model in use).
+ * @param now - display-time clock, epoch ms.
+ * @param windowMs - window length behind `now`.
+ * @returns mean first-token latency in ms, or undefined below five samples.
+ */
+export function windowLatencyTtft(
+  routes: readonly LatencyRing[] | undefined,
+  provider: string | undefined,
+  model: string | undefined,
+  now: number,
+  windowMs: number,
+): number | undefined {
+  if (routes === undefined || provider === undefined || model === undefined) return undefined
+  const route = routes.find(candidate => candidate.provider === provider && candidate.model === model)
+  const inWindow = (route?.samples ?? []).filter(sample => sample.at >= now - windowMs)
+  const ttfts = inWindow.map(sample => sample.ttftMs).filter((value): value is number => value !== undefined)
+  if (ttfts.length < 5) return undefined
+  return Math.round(ttfts.reduce((total, value) => total + value, 0) / ttfts.length)
 }

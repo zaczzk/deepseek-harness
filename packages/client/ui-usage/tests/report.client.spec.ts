@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import { en as commonEn } from '@deepseek-ai/dsh-client-locale/src/locales/index.ts'
-import { formatLatencyPair, formatPlanReset, formatRunway } from '../src/client/format.ts'
+import { formatLatencyPair, formatLatencyTrio, formatPlanReset, formatRunway } from '../src/client/format.ts'
 import { en } from '../src/client/locales.ts'
-import { windowLatencyP95 } from '../src/client/usage.ts'
+import { windowLatencyP95, windowLatencyTtft } from '../src/client/usage.ts'
 
 const t = makeTranslate(en, commonEn) as Parameters<typeof formatRunway>[1]
 const NOW = 1_000_000
@@ -43,6 +43,41 @@ describe('formatLatencyPair and formatRunway', () => {
   it('compose the pinned row values', () => {
     expect(formatLatencyPair(1_200, 3_100, t)).toBe('1.2s · p95 3.1s')
     expect(formatLatencyPair(860, 3_100, t)).toBe('860ms · p95 3.1s')
+    expect(formatLatencyTrio(1_200, 3_100, 240, t)).toBe('1.2s · p95 3.1s · ttft 240ms')
     expect(formatRunway(12, t)).toBe('≈12d')
+  })
+})
+
+describe('windowLatencyTtft', () => {
+  it('reports the mean first-token latency over its bearing samples', () => {
+    const routes = [{
+      provider: 'mock',
+      model: 'a',
+      samples: [
+        { at: NOW - MINUTE, ms: 1_200, ttftMs: 200 },
+        { at: NOW - MINUTE, ms: 1_200, ttftMs: 240 },
+        { at: NOW - MINUTE, ms: 1_200, ttftMs: 260 },
+        { at: NOW - MINUTE, ms: 1_200, ttftMs: 280 },
+        { at: NOW - MINUTE, ms: 1_200, ttftMs: 220 },
+      ],
+    }]
+    expect(windowLatencyTtft(routes, 'mock', 'a', NOW, 15 * MINUTE)).toBe(240)
+  })
+
+  it('reports nothing below five bearing samples or without the model in use', () => {
+    const few = [{
+      provider: 'mock',
+      model: 'a',
+      samples: [
+        { at: NOW, ms: 1, ttftMs: 1 },
+        { at: NOW, ms: 1 },
+        { at: NOW, ms: 1 },
+        { at: NOW, ms: 1 },
+        { at: NOW, ms: 1 },
+      ],
+    }]
+    expect(windowLatencyTtft(few, 'mock', 'a', NOW, 15 * MINUTE)).toBeUndefined()
+    expect(windowLatencyTtft(undefined, 'mock', 'a', NOW, 15 * MINUTE)).toBeUndefined()
+    expect(windowLatencyTtft(few, undefined, 'a', NOW, 15 * MINUTE)).toBeUndefined()
   })
 })

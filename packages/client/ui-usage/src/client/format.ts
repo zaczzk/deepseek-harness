@@ -2,6 +2,22 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { NS } from './locales.ts'
 
 /**
+ * Compose one latency row value from its window average, tail, and first token.
+ * @param avgMs - window average latency in milliseconds.
+ * @param p95Ms - window tail latency in milliseconds.
+ * @param ttftMs - window mean first-token latency in milliseconds.
+ * @param t - the meter's translate seat, which carries the trio template.
+ * @returns `1.2s · p95 3.1s · ttft 240ms`.
+ */
+export function formatLatencyTrio(avgMs: number, p95Ms: number, ttftMs: number, t: TranslateNS<typeof NS>): string {
+  return t('latency.trio', {
+    value: formatLatency(avgMs, t),
+    p95: formatLatency(p95Ms, t),
+    ttft: t('latency.millis', { value: ttftMs }),
+  })
+}
+
+/**
  * Compose one latency row value from its window average and tail.
  * @param avgMs - window average latency in milliseconds.
  * @param p95Ms - window tail latency in milliseconds.

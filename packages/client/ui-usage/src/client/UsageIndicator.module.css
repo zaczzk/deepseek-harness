@@ -152,3 +152,37 @@
   border-radius: 1px;
   background: var(--dsw-static-deepseek-450);
 }
+
+/* Copy affordance: hover/focus revealed, always up on touch pointers. */
+.copy {
+  opacity: 0;
+  border: 0;
+  background: none;
+  color: var(--dsw-fg-3);
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+  padding: 0 0 0 4px;
+}
+
+.row:hover .copy,
+.copy:focus-visible {
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  .copy {
+    opacity: 1;
+  }
+}
+
+.copyDone {
+  opacity: 1;
+  color: var(--dsw-fg-2);
+}
+
+/* One actionable line where the provider rows would sit. */
+.expired {
+  color: var(--dsw-fg-3);
+  margin: 0;
+}

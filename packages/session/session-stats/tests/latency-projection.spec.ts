@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { createMessage } from '@deepseek-ai/dsh-llm'
+import type { AssistantStreamRecord } from '@deepseek-ai/dsh-llm'
 import SessionStore from '@deepseek-ai/dsh-session'
 import type { Session } from '@deepseek-ai/dsh-session'
 import SessionProjectionRegistry from '@deepseek-ai/dsh-session-projection'
@@ -18,14 +19,14 @@ async function harness(): Promise<{ ctx: Context; session: Session }> {
 
 /** One step that starts at `startedAt` and assembles a message at `settledAt`. */
 function call(session: Session, turn: number, step: number, startedAt: number, settledAt: number,
-  provider = 'mock', model = 'a'): void {
+  provider = 'mock', model = 'a', stream: readonly AssistantStreamRecord[] = []): void {
   vi.setSystemTime(startedAt)
   session.append('step/start', { turn, step })
   vi.setSystemTime(settledAt)
   session.append('assistant/message', {
     turn,
     step,
-    stream: [],
+    stream,
     message: createMessage({ role: 'assistant', content: [], source: { kind: 'model', provider, model } }),
     usage: { inputTokens: 1, outputTokens: 1 },
   }, { surfaceOp: 'append' })
@@ -69,6 +70,24 @@ describe('modelLatency session projection', () => {
         { provider: 'mock', model: 'b', samples: [{ at: 5_500, ms: 500 }] },
       ],
     })
+  })
+
+  it('records the first-token latency as a duration clamped to its call', async () => {
+    vi.useFakeTimers()
+    const { ctx, session } = await harness()
+    // A first token 300ms into a 400ms call keeps 300ms; a first token after
+    // the settle clamps to the call's own latency.
+    call(session, 1, 1, 1_000, 1_400, 'mock', 'a',
+      [{ type: 'text-chunks', time0: 1_300, index: 0, dt: [], texts: ['a'] }])
+    call(session, 1, 2, 2_000, 2_400, 'mock', 'a',
+      [{ type: 'text-chunks', time0: 2_900, index: 0, dt: [], texts: ['b'] }])
+    call(session, 1, 3, 3_000, 3_400, 'mock', 'a')
+    const [route] = projected(ctx, session).routes
+    expect(route?.samples).toEqual([
+      { at: 1_400, ms: 400, ttftMs: 300 },
+      { at: 2_400, ms: 400, ttftMs: 400 },
+      { at: 3_400, ms: 400 },
+    ])
   })
 
   it('keeps only the newest samples of a route', async () => {
