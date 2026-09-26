@@ -2,14 +2,16 @@
  * Usage route over a real WebServer booted through the vendored Loader (the
  * REAL-composition requirement): the connection trust fence, the two-poll
  * failure matrix (per-poll keep-previous, login challenge freezes the whole
- * report), the burn observation, the credits presence rule, and the
- * no-session idle state. The provider's console endpoints are faked through
- * `fetch`; the connection service is a controllable stub (its real provider is
- * the browser composition).
+ * report), the burn observation, the credits presence rule, the no-session
+ * idle state, and the poll loop's lifecycle: overlapping cycles commit in
+ * start order and disposal releases in-flight requests to quiescence. The
+ * provider's console endpoints are faked through `fetch` or a loopback
+ * console stand-in; the connection service is a controllable stub (its real
+ * provider is the browser composition).
  */
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { createServer } from 'node:http'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,15 +33,19 @@ const realFetch = globalThis.fetch.bind(globalThis)
 const trust: { rejection: 401 | 403 | undefined } = { rejection: undefined }
 
 afterEach(async () => {
+  // Globals first: restoration must survive a failing disposal.
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
   await context?.fiber.dispose()
   context = undefined
   if (root !== undefined) await rm(root, { recursive: true, force: true })
   root = undefined
   trust.rejection = undefined
-  vi.unstubAllEnvs()
-  vi.unstubAllGlobals()
-  vi.useRealTimers()
 })
+
+/** One macrotask turn: every pending poll continuation has run. */
+const settle = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0) })
 
 /** Boot webserver + token-plan-usage rows through the real Loader. */
 async function boot(session: string, consoleOrigin = 'https://console.example'): Promise<string> {
@@ -121,6 +127,35 @@ const detailReport = (name: string, end: string): unknown => ({
 const loginChallenge = (): Promise<Response> =>
   Promise.resolve(new Response(JSON.stringify({ code: 401, loginUrl: 'https://account.example/login' }), { status: 401 }))
 
+/**
+ * A stand-in console on a loopback ephemeral port. Each handler owns its
+ * request, so a test can hold one open and observe when its release lands.
+ * @param usage - handler for the usage endpoint.
+ * @param detail - handler for the detail endpoint.
+ * @returns the console origin and the quiescent shutdown.
+ */
+async function consoleServer(
+  usage: (req: IncomingMessage, res: ServerResponse) => void,
+  detail: (req: IncomingMessage, res: ServerResponse) => void,
+): Promise<{ origin: string; close: () => Promise<void> }> {
+  const server = createServer((req, res) => {
+    if (req.url === '/api/v1/tokenPlan/usage') usage(req, res)
+    else detail(req, res)
+  })
+  await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve) })
+  return {
+    origin: `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`,
+    // closeAllConnections: an aborted poll may still hold a keep-alive socket,
+    // and close() alone would wait out the idle timeout.
+    close: async () => {
+      await new Promise<void>((resolve) => {
+        server.close(() => { resolve() })
+        server.closeAllConnections()
+      })
+    },
+  }
+}
+
 describe('token-plan usage route', () => {
   it('serves the polled window, plan, and credits as one report', async () => {
     const seen: { url: string | undefined; cookie: string | undefined } = { url: undefined, cookie: undefined }
@@ -149,7 +184,7 @@ describe('token-plan usage route', () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
     let detailFails = false
     let usageFails = false
-    vi.stubGlobal('fetch', vi.fn((url: string) => {
+    const fetcher = vi.fn((url: string) => {
       if (url.endsWith('/detail')) {
         return detailFails
           ? Promise.reject(new Error('detail unreachable'))
@@ -158,16 +193,23 @@ describe('token-plan usage route', () => {
       return usageFails
         ? Promise.reject(new Error('usage unreachable'))
         : jsonResponse(monthReport(7, 10))
-    }))
+    })
+    vi.stubGlobal('fetch', fetcher)
     const origin = await boot('cookie-value')
     await vi.advanceTimersByTimeAsync(0)
+    await settle()
     expect((await reportOf(origin)).plan?.name).toBe('Pro')
     detailFails = true
     await vi.advanceTimersByTimeAsync(60_000)
+    await settle()
+    // The failing poll really ran both requests, and its failure kept the plan.
+    expect(fetcher).toHaveBeenCalledTimes(4)
     expect((await reportOf(origin)).limits).toEqual([{ period: 'month', usedTokens: 7, limitTokens: 10 }])
     detailFails = false
     usageFails = true
     await vi.advanceTimersByTimeAsync(60_000)
+    await settle()
+    expect(fetcher).toHaveBeenCalledTimes(6)
     expect((await reportOf(origin)).plan?.name).toBe('Pro')
   })
 
@@ -208,6 +250,8 @@ describe('token-plan usage route', () => {
 
   it('serves the plan without a burn figure when the usage report never arrives', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+    // Pinned so the plan window is always ahead of the clock under test.
+    vi.setSystemTime(new Date('2026-09-25T02:10:00.000Z'))
     vi.stubGlobal('fetch', vi.fn((url: string) => url.endsWith('/detail')
       ? jsonResponse(detailReport('Pro', '2026-10-22 23:59:59'))
       : Promise.reject(new Error('usage unreachable'))))
@@ -220,6 +264,8 @@ describe('token-plan usage route', () => {
 
   it('attaches the burn figure once the observation covers its window', async () => {
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] })
+    // Pinned so the plan window is always ahead of the clock under test.
+    vi.setSystemTime(new Date('2026-09-25T02:10:00.000Z'))
     let calls = 0
     vi.stubGlobal('fetch', vi.fn((url: string) => {
       if (url.endsWith('/detail')) return jsonResponse(detailReport('Pro', '2026-10-22 23:59:59'))
@@ -283,27 +329,128 @@ describe('token-plan usage route', () => {
 
   it('refuses a redirect so the stored session never reaches the target', async () => {
     const hits: string[] = []
-    const server = createServer((req, res) => {
-      hits.push(String(req.url))
-      if (req.url === '/api/v1/tokenPlan/usage') {
+    const console = await consoleServer(
+      (req, res) => {
+        hits.push(String(req.url))
         res.writeHead(302, { location: '/steal' })
         res.end()
-        return
-      }
-      res.writeHead(200, { 'content-type': 'application/json' })
-      res.end('{"used":1,"limit":2}')
-    })
-    await new Promise<void>((resolve) => { server.listen(0, '127.0.0.1', resolve) })
-    const port = (server.address() as AddressInfo).port
+      },
+      (req, res) => {
+        hits.push(String(req.url))
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end('{"used":1,"limit":2}')
+      },
+    )
     try {
-      const origin = await boot('cookie-value', `http://127.0.0.1:${String(port)}`)
+      const origin = await boot('cookie-value', console.origin)
       await vi.waitFor(() => {
         expect(hits).toContain('/api/v1/tokenPlan/usage')
       })
       expect(hits).not.toContain('/steal')
       expect((await reportOf(origin)).limits).toEqual([])
     } finally {
-      await new Promise<void>((resolve) => { server.close(() => { resolve() }) })
+      await console.close()
     }
+  })
+
+  it('drops a stale poll instead of overwriting a newer report', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    let releaseStale!: (response: Response) => void
+    const staleUsage = new Promise<Response>((resolve) => { releaseStale = resolve })
+    let usageCalls = 0
+    const fetcher = vi.fn((url: string) => {
+      if (url.endsWith('/detail')) return jsonResponse(detailReport('Pro', '2026-10-22 23:59:59'))
+      usageCalls += 1
+      return usageCalls === 1 ? staleUsage : jsonResponse(monthReport(700, 1_000))
+    })
+    vi.stubGlobal('fetch', fetcher)
+    const origin = await boot('cookie-value')
+    // The first poll's usage request is still in flight when the interval's
+    // second poll lands the 700 counts.
+    await vi.advanceTimersByTimeAsync(60_000)
+    await settle()
+    await vi.waitFor(async () => {
+      expect((await reportOf(origin)).limits).toEqual([{ period: 'month', usedTokens: 700, limitTokens: 1_000 }])
+    })
+    // The stale first poll resolves late and finishes its cycle...
+    releaseStale(await jsonResponse(monthReport(100, 1_000)))
+    await vi.waitFor(() => { expect(fetcher).toHaveBeenCalledTimes(4) })
+    await settle()
+    // ...but its older counts never overwrite the newer report.
+    expect((await reportOf(origin)).limits).toEqual([{ period: 'month', usedTokens: 700, limitTokens: 1_000 }])
+  })
+
+  it('releases the in-flight usage request on disposal and polls nothing more', async () => {
+    let usageRequested = false
+    let usageReleased = false
+    let detailHits = 0
+    const console = await consoleServer(
+      (_req, res) => {
+        usageRequested = true
+        res.on('close', () => { usageReleased = true })
+        // Held open: only disposal releases this request.
+      },
+      (_req, res) => {
+        detailHits += 1
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end('{"data":{}}')
+      },
+    )
+    try {
+      await boot('cookie-value', console.origin)
+      await vi.waitFor(() => { expect(usageRequested).toBe(true) })
+      await context!.fiber.dispose()
+      context = undefined
+      await vi.waitFor(() => { expect(usageReleased).toBe(true) })
+      expect(detailHits).toBe(0)
+    } finally {
+      await console.close()
+    }
+  })
+
+  it('releases the in-flight detail request on disposal', async () => {
+    let usageHits = 0
+    let detailRequested = false
+    let detailReleased = false
+    const console = await consoleServer(
+      (_req, res) => {
+        usageHits += 1
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify(monthReport(7, 10)))
+      },
+      (_req, res) => {
+        detailRequested = true
+        res.on('close', () => { detailReleased = true })
+        // Held open: only disposal releases this request.
+      },
+    )
+    try {
+      await boot('cookie-value', console.origin)
+      await vi.waitFor(() => { expect(detailRequested).toBe(true) })
+      await context!.fiber.dispose()
+      context = undefined
+      await vi.waitFor(() => { expect(detailReleased).toBe(true) })
+      expect(usageHits).toBe(1)
+    } finally {
+      await console.close()
+    }
+  })
+
+  it('stops a late-completing poll before its next request after disposal', async () => {
+    let releaseUsage!: (response: Response) => void
+    const usageResponse = new Promise<Response>((resolve) => { releaseUsage = resolve })
+    const fetcher = vi.fn((url: string) => url.endsWith('/detail')
+      ? jsonResponse(detailReport('Pro', '2026-10-22 23:59:59'))
+      : usageResponse)
+    vi.stubGlobal('fetch', fetcher)
+    await boot('cookie-value')
+    await vi.waitFor(() => { expect(fetcher).toHaveBeenCalledTimes(1) })
+    await context!.fiber.dispose()
+    context = undefined
+    // The disposed poll's request still resolves late...
+    releaseUsage(await jsonResponse(monthReport(700, 1_000)))
+    await settle()
+    // ...but the cycle stops there and never reaches the detail request.
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 })

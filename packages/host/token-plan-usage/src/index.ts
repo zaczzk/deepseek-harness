@@ -114,6 +114,14 @@ export function apply(ctx: Context, config: Config): void {
   let report: TokenPlanUsageResponse = { limits: [], state: 'ok' }
   /** Period observation behind the burn figure; in-memory by design. */
   let firstSeen: FirstSeen | undefined
+  /** Generation of the newest started poll cycle; older cycles never commit. */
+  let newestPoll = 0
+  /** Set by the poll-loop disposer first thing at teardown. */
+  let disposed = false
+  /** Aborts in-flight provider requests the moment the poll loop is disposed. */
+  const disposeAbort = new AbortController()
+  /** True once teardown began; a late poll stage checks this before it acts. */
+  const isDisposed = (): boolean => disposed
   /** Answer an untrusted/unauthenticated request; true when it was rejected. */
   const rejected = (req: IncomingMessage, res: ServerResponse): boolean => {
     const rejection = connectionOf(ctx).requestRejection(req)
@@ -125,16 +133,18 @@ export function apply(ctx: Context, config: Config): void {
 
   const fetchReport = async (path: string): Promise<{ status: number; body: unknown }> => {
     // `redirect: 'error'`: the stored session rides this request, so a
-    // redirect may never forward it to another origin.
+    // redirect may never forward it to another origin. The dispose signal
+    // releases the request at teardown instead of leaving it pending.
     const response = await fetch(`${origin}${path}`, {
       headers: { cookie: session, accept: 'application/json' },
       redirect: 'error',
-      signal: AbortSignal.timeout(config.timeoutMs.get()),
+      signal: AbortSignal.any([AbortSignal.timeout(config.timeoutMs.get()), disposeAbort.signal]),
     })
     return { status: response.status, body: await response.json() }
   }
 
   const poll = async (): Promise<void> => {
+    const generation = (newestPoll += 1)
     const now = Date.now()
     let limits: readonly UsageLimitReport[] = report.limits
     let credits: UsageCreditsReport | undefined = report.credits
@@ -154,12 +164,17 @@ export function apply(ctx: Context, config: Config): void {
         } else {
           limits = parsed
           credits = parseCredits(usage.body) ?? undefined
-          firstSeen = recordObservation(firstSeen, parsed.find(window => window.period === 'month'), plan?.resetsAt ?? '', now)
+          // The newest live cycle owns the shared observation; a disposed or
+          // stale one records nothing.
+          if (!isDisposed() && generation === newestPoll) {
+            firstSeen = recordObservation(firstSeen, parsed.find(window => window.period === 'month'), plan?.resetsAt ?? '', now)
+          }
         }
       }
     } catch (pollFailure) {
-      ctx.logger.warn(`token-plan-usage: usage poll failed: ${String(pollFailure)}`)
+      if (!isDisposed()) ctx.logger.warn(`token-plan-usage: usage poll failed: ${String(pollFailure)}`)
     }
+    if (isDisposed()) return
 
     try {
       const detail = await fetchReport(DETAIL_ENDPOINT)
@@ -185,17 +200,23 @@ export function apply(ctx: Context, config: Config): void {
         }
       }
     } catch (pollFailure) {
-      ctx.logger.warn(`token-plan-usage: detail poll failed: ${String(pollFailure)}`)
+      if (!isDisposed()) ctx.logger.warn(`token-plan-usage: detail poll failed: ${String(pollFailure)}`)
     }
+    if (isDisposed()) return
 
-    report = expired
-      ? { ...report, state: 'expired' }
-      : {
-        limits,
-        ...plan === undefined ? {} : { plan },
-        ...credits === undefined ? {} : { credits },
-        state: 'ok',
-      }
+    // A login challenge freezes the whole report at this one commit point,
+    // even mid-overlap; a stale cycle never overwrites a newer report.
+    if (expired) {
+      report = { ...report, state: 'expired' }
+      return
+    }
+    if (generation !== newestPoll) return
+    report = {
+      limits,
+      ...plan === undefined ? {} : { plan },
+      ...credits === undefined ? {} : { credits },
+      state: 'ok',
+    }
   }
 
   ctx.effect(() => ctx.webServer.register({
@@ -218,6 +239,13 @@ export function apply(ctx: Context, config: Config): void {
   ctx.effect(() => {
     void poll()
     const timer = setInterval(() => { void poll() }, config.pollIntervalMs.get())
-    return () => { clearInterval(timer) }
+    // Teardown first stops new work, then releases the in-flight request:
+    // after the disposer runs, no cycle records an observation or commits a
+    // report, and no further provider request starts.
+    return () => {
+      disposed = true
+      disposeAbort.abort()
+      clearInterval(timer)
+    }
   }, 'token-plan-usage: poll loop')
 }

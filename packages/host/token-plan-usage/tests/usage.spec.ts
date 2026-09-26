@@ -46,6 +46,19 @@ describe('parseUsageLimits', () => {
     })).toEqual([{ period: 'month', usedTokens: 0, limitTokens: 1 }])
   })
 
+  it('reads the month row wherever it sits in a large report', () => {
+    const items = Array.from({ length: 10_000 }, (_unused, index) => ({ name: `row_${String(index)}`, used: index, limit: 10 }))
+    items.push({ name: 'month_total_token', used: 5, limit: 9 })
+    expect(parseUsageLimits({ data: { monthUsage: { items } } }))
+      .toEqual([{ period: 'month', usedTokens: 5, limitTokens: 9 }])
+  })
+
+  it('ignores a row whose name rides a `__proto__` key', () => {
+    const body: unknown = JSON.parse('{"data":{"monthUsage":{"items":[{"__proto__":{"name":"month_total_token"},"used":1,"limit":2}]}}}')
+    expect(parseUsageLimits(body)).toBeNull()
+    expect(Object.hasOwn(Object.prototype, 'name')).toBe(false)
+  })
+
   it.each([
     ['a non-object body', 'used 12'],
     ['null body', null],
@@ -57,6 +70,10 @@ describe('parseUsageLimits', () => {
     ['a fractional count', { data: { monthUsage: { items: [{ name: 'month_total_token', used: 1.5, limit: 2 }] } } }],
     ['a negative count', { data: { monthUsage: { items: [{ name: 'month_total_token', used: -1, limit: 2 }] } } }],
     ['a zero limit', { data: { monthUsage: { items: [{ name: 'month_total_token', used: 1, limit: 0 }] } } }],
+    ['a NaN count', { data: { monthUsage: { items: [{ name: 'month_total_token', used: Number.NaN, limit: 2 }] } } }],
+    ['an infinite count', { data: { monthUsage: { items: [{ name: 'month_total_token', used: Number.POSITIVE_INFINITY, limit: 2 }] } } }],
+    ['a count beyond the safe integer range', { data: { monthUsage: { items: [{ name: 'month_total_token', used: 2 ** 53, limit: 2 }] } } }],
+    ['a limit beyond the safe integer range', { data: { monthUsage: { items: [{ name: 'month_total_token', used: 1, limit: 2 ** 53 }] } } }],
   ])('refuses %s', (_label, report) => {
     expect(parseUsageLimits(report)).toBeNull()
   })
@@ -89,8 +106,14 @@ describe('parseCredits', () => {
     ['a non-numeric credit limit', { data: { usage: { items: [{ name: 'compensation_total_token', used: 0, limit: 'x' }] } } }],
     ['a negative count', { data: { usage: { items: [{ name: 'compensation_total_token', used: -1, limit: 0 }] } } }],
     ['a negative credit limit', { data: { usage: { items: [{ name: 'compensation_total_token', used: 0, limit: -1 }] } } }],
+    ['a count beyond the safe integer range', { data: { usage: { items: [{ name: 'compensation_total_token', used: 2 ** 53, limit: 0 }] } } }],
   ])('refuses %s', (_label, report) => {
     expect(parseCredits(report)).toBeNull()
+  })
+
+  it('serializes a negative-zero count as zero on the wire', () => {
+    const parsed = parseCredits(withCreditRow(-0, 5))
+    expect(JSON.stringify(parsed)).toBe('{"usedTokens":0,"limitTokens":5}')
   })
 })
 
@@ -111,6 +134,10 @@ describe('parsePlan', () => {
     ['a non-string period end', { data: { planName: 'Pro', currentPeriodEnd: 5 } }],
     ['a malformed period end', { data: { planName: 'Pro', currentPeriodEnd: '2026-10-22' } }],
     ['an offset-carrying period end', { data: { planName: 'Pro', currentPeriodEnd: '2026-10-22T23:59:59Z' } }],
+    ['a thirteenth month', { data: { planName: 'Pro', currentPeriodEnd: '2026-13-01 00:00:00' } }],
+    ['a February date that does not exist', { data: { planName: 'Pro', currentPeriodEnd: '2026-02-30 00:00:00' } }],
+    ['an hour beyond the day', { data: { planName: 'Pro', currentPeriodEnd: '2026-10-22 24:00:00' } }],
+    ['a second beyond the minute', { data: { planName: 'Pro', currentPeriodEnd: '2026-10-22 23:59:60' } }],
   ])('refuses %s', (_label, report) => {
     expect(parsePlan(report, Date.UTC(2026, 8, 25))).toBeNull()
   })
@@ -145,8 +172,20 @@ describe('daysUntilReset', () => {
     expect(daysUntilReset('2026-12-31 23:59:59', Date.UTC(2026, 11, 30, 14, 0, 0))).toBe(1)
   })
 
+  it('counts from a clock before the epoch as one day per day', () => {
+    expect(daysUntilReset('2026-10-22 23:59:59', -86_400_000))
+      .toBe(daysUntilReset('2026-10-22 23:59:59', 0)! + 1)
+  })
+
   it('refuses anything but the naive shape', () => {
-    expect(daysUntilReset('2026-10-22', Date.now())).toBeNull()
+    expect(daysUntilReset('2026-10-22', 0)).toBeNull()
+  })
+
+  it('refuses fields that are shaped right but form no calendar moment', () => {
+    expect(daysUntilReset('2026-13-01 00:00:00', 0)).toBeNull()
+    expect(daysUntilReset('2026-02-30 00:00:00', 0)).toBeNull()
+    expect(daysUntilReset('2026-10-22 24:00:00', 0)).toBeNull()
+    expect(daysUntilReset('2026-10-22 23:59:60', 0)).toBeNull()
   })
 })
 
@@ -164,6 +203,13 @@ describe('computeBurn', () => {
     expect(computeBurn(2_500, 33_700, firstSeen, 5 * HOUR, 30)).toBeNull()
     expect(computeBurn(2_500, 33_700, undefined, 24 * HOUR, 30)).toBeNull()
     expect(computeBurn(2_500, 33_700, firstSeen, 24 * HOUR, 12)).toBeNull()
+  })
+
+  it('refuses when the clock stands still or moves backwards', () => {
+    // `firstSeen.at` is the observation start: zero and negative elapsed both
+    // refuse instead of dividing by zero or a negative window.
+    expect(computeBurn(2_500, 33_700, firstSeen, firstSeen.at, 30)).toBeNull()
+    expect(computeBurn(2_500, 33_700, firstSeen, -HOUR, 30)).toBeNull()
   })
 
   it('refuses a zero burn, a spent period, and an exhausted limit', () => {

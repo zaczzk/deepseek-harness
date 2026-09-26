@@ -10,13 +10,24 @@ import type { UsageLimit, UsageReport } from './contract.ts'
 /** The honest empty report: no rows is the meter's state before a first read. */
 const EMPTY_REPORT: UsageReport = { limits: [], state: 'ok' }
 
+/**
+ * A wire token count. JSON can still deliver overflowed infinities and
+ * precision-destroyed magnitudes (`1e400`, `1e22`), so a number type alone
+ * does not make a count renderable.
+ * @param value - one decoded count member.
+ * @returns true for a non-negative safe integer.
+ */
+function isCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
 /** One reported window as the wire carries it, or null when malformed. */
 function readWindow(entry: unknown): UsageLimit | null {
   if (typeof entry !== 'object' || entry === null) return null
   const { period, usedTokens, limitTokens } = entry as { period?: unknown; usedTokens?: unknown; limitTokens?: unknown }
   const shape = (period === 'week' || period === 'month')
-    && typeof usedTokens === 'number'
-    && typeof limitTokens === 'number'
+    && isCount(usedTokens)
+    && isCount(limitTokens)
   return shape ? { period, usedTokens, limitTokens } : null
 }
 
@@ -44,6 +55,8 @@ function readPlan(entry: unknown): NonNullable<TokenPlanUsageResponse['plan']> |
     projectedDays?: unknown
   }
   const burnShape = typeof dailyTokens === 'number'
+    && Number.isInteger(dailyTokens)
+    && dailyTokens >= 0
     && typeof observedSince === 'string'
     && typeof projectedDays === 'number'
   return burnShape && Number.isInteger(projectedDays)
@@ -84,7 +97,7 @@ export function readReport(body: unknown): UsageReport | null {
 function readCredits(entry: unknown): { usedTokens: number; limitTokens: number } | null {
   if (typeof entry !== 'object' || entry === null) return null
   const { usedTokens, limitTokens } = entry as { usedTokens?: unknown; limitTokens?: unknown }
-  return typeof usedTokens === 'number' && typeof limitTokens === 'number'
+  return isCount(usedTokens) && isCount(limitTokens)
     ? { usedTokens, limitTokens }
     : null
 }

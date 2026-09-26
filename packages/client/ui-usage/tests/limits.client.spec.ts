@@ -45,6 +45,13 @@ describe('readReport', () => {
     ['non-numeric counts', { limits: [{ period: 'week', usedTokens: '1', limitTokens: 2 }], state: 'ok' }],
     ['a non-object entry', { limits: ['nope'], state: 'ok' }],
     ['a null entry', { limits: [null], state: 'ok' }],
+    ['an array entry', { limits: [['week', 1, 2]], state: 'ok' }],
+    ['a numeric entry', { limits: [7], state: 'ok' }],
+    ['a fractional count', { limits: [{ period: 'week', usedTokens: 1.5, limitTokens: 2 }], state: 'ok' }],
+    ['a negative count', { limits: [{ period: 'week', usedTokens: -1, limitTokens: 2 }], state: 'ok' }],
+    ['a NaN count', { limits: [{ period: 'week', usedTokens: Number.NaN, limitTokens: 2 }], state: 'ok' }],
+    ['an infinite count', { limits: [{ period: 'week', usedTokens: Number.POSITIVE_INFINITY, limitTokens: 2 }], state: 'ok' }],
+    ['a count beyond the safe integer range', { limits: [{ period: 'week', usedTokens: 2 ** 53, limitTokens: 2 }], state: 'ok' }],
     ['a missing state', { limits: [] }],
     ['an unknown state', { limits: [], state: 'later' }],
     ['a null plan', { limits: [], plan: null, state: 'ok' }],
@@ -86,11 +93,55 @@ describe('readReport', () => {
       },
       state: 'ok',
     }],
+    ['a fractional burn rate', {
+      limits: [],
+      plan: {
+        name: 'Pro', resetsAt: '2026-10-22 23:59:59', daysUntilReset: 27,
+        burn: { dailyTokens: 1.5, observedSince: '2026-09-25T02:10:00.000Z', projectedDays: 12 },
+      },
+      state: 'ok',
+    }],
+    ['a negative burn rate', {
+      limits: [],
+      plan: {
+        name: 'Pro', resetsAt: '2026-10-22 23:59:59', daysUntilReset: 27,
+        burn: { dailyTokens: -1, observedSince: '2026-09-25T02:10:00.000Z', projectedDays: 12 },
+      },
+      state: 'ok',
+    }],
+    ['a non-finite burn rate', {
+      limits: [],
+      plan: {
+        name: 'Pro', resetsAt: '2026-10-22 23:59:59', daysUntilReset: 27,
+        burn: { dailyTokens: Number.POSITIVE_INFINITY, observedSince: '2026-09-25T02:10:00.000Z', projectedDays: 12 },
+      },
+      state: 'ok',
+    }],
     ['a null credits pair', { limits: [], credits: null, state: 'ok' }],
     ['a non-object credits pair', { limits: [], credits: 5, state: 'ok' }],
     ['a malformed credits pair', { limits: [], credits: { usedTokens: 1 }, state: 'ok' }],
+    ['a fractional credit count', { limits: [], credits: { usedTokens: 1.5, limitTokens: 0 }, state: 'ok' }],
+    ['a negative credit count', { limits: [], credits: { usedTokens: 0, limitTokens: -1 }, state: 'ok' }],
   ])('refuses %s', (_label, body) => {
     expect(readReport(body)).toBeNull()
+  })
+
+  it('reads a negative-zero count as a zero count on the wire', () => {
+    const report = readReport({ limits: [{ period: 'month', usedTokens: -0, limitTokens: 2 }], state: 'ok' })
+    expect(JSON.stringify(report)).toBe('{"limits":[{"period":"month","usedTokens":0,"limitTokens":2}],"state":"ok"}')
+  })
+
+  it('refuses window fields carried on a `__proto__` key without inheriting them', () => {
+    const body: unknown = JSON.parse('{"limits":[{"__proto__":{"period":"month","usedTokens":1,"limitTokens":2}}],"state":"ok"}')
+    expect(readReport(body)).toBeNull()
+    expect(Object.hasOwn(Object.prototype, 'period')).toBe(false)
+  })
+
+  it('refuses a deeply nested body without walking into it', () => {
+    let deep: unknown = { name: 'month_total_token', usedTokens: 1, limitTokens: 2 }
+    for (let level = 0; level < 5_000; level += 1) deep = { deeper: deep }
+    expect(readReport(deep)).toBeNull()
+    expect(readReport({ limits: deep, state: 'ok' })).toBeNull()
   })
 })
 
@@ -119,6 +170,12 @@ describe('loadLimits', () => {
 
   it('publishes the empty report for valid JSON that is not a report', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify({ hello: 1 }), { status: 200 }))))
+    expect(await loadLimits()).toEqual({ limits: [], state: 'ok' })
+  })
+
+  it('publishes the empty report for a deeply nested non-report body', async () => {
+    const nested = `${'['.repeat(50_000)}${']'.repeat(50_000)}`
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(nested, { status: 200 }))))
     expect(await loadLimits()).toEqual({ limits: [], state: 'ok' })
   })
 })

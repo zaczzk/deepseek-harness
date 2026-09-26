@@ -139,6 +139,7 @@ describe('formatTokens', () => {
   const t = makeTranslate(en, commonEn) as Parameters<typeof formatTokens>[1]
 
   it.each([
+    [-0, '0'],
     [517, '517'],
     [12_240, '12.2K'],
     [517_000, '517K'],

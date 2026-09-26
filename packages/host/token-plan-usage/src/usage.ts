@@ -22,6 +22,16 @@ const PERIOD_END = /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})$/
 const BURN_MIN_OBSERVATION_MS = 6 * 60 * 60 * 1000
 
 /**
+ * A provider-reported token count. JSON destroys the precision of integers
+ * beyond the safe range before this sees them, so such counts are unusable.
+ * @param value - one decoded `used`/`limit` member.
+ * @returns true for a non-negative safe integer.
+ */
+function isTokenCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+/**
  * Parse one Token Plan usage report's monthly window.
  * @param report - the decoded JSON body of the provider's usage endpoint.
  * @returns the reported windows, or null when the body carries no usable counts.
@@ -40,8 +50,8 @@ export function parseUsageLimits(report: unknown): UsageLimitReport[] | null {
     && (item as { name?: unknown }).name === 'month_total_token')
   if (row === undefined) return null
   const { used, limit } = row as { used?: unknown; limit?: unknown }
-  if (typeof used !== 'number' || !Number.isInteger(used) || used < 0) return null
-  if (typeof limit !== 'number' || !Number.isInteger(limit) || limit <= 0) return null
+  if (!isTokenCount(used)) return null
+  if (!isTokenCount(limit) || limit <= 0) return null
   return [{ period: 'month', usedTokens: used, limitTokens: limit }]
 }
 
@@ -65,8 +75,8 @@ export function parseCredits(report: unknown): UsageCreditsReport | null {
     && (item as { name?: unknown }).name === 'compensation_total_token')
   if (row === undefined) return null
   const { used, limit } = row as { used?: unknown; limit?: unknown }
-  if (typeof used !== 'number' || !Number.isInteger(used) || used < 0) return null
-  if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 0) return null
+  if (!isTokenCount(used)) return null
+  if (!isTokenCount(limit)) return null
   return used > 0 || limit > 0 ? { usedTokens: used, limitTokens: limit } : null
 }
 
@@ -132,6 +142,10 @@ export function daysUntilReset(resetsAt: string, now: number): number | null {
   const parts = PERIOD_END.exec(resetsAt)
   if (parts === null) return null
   const [, year, month, day, hour, minute, second] = parts
+  // `Date.UTC` rolls invalid fields over (month 13, February 30, hour 24), so
+  // the rebuilt calendar moment must read back exactly what the string carried.
+  const civil = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)))
+  if (civil.toISOString().replace('T', ' ').slice(0, 19) !== resetsAt) return null
   const target = Date.UTC(
     Number(year),
     Number(month) - 1,
