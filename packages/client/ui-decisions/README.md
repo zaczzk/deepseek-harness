@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to see the session workspace's major-decision register without leaving the conversation. The `decisions` conversation view reads `DECISIONS.md` over the `workspaceFiles` Remote and renders its decision-register table newest first, one row per decision or milestone, with each milestone's recorded diagram state in the Diagram column and the latest milestone marked.
+Use this package to see the session workspace's major-decision register without leaving the conversation. The `decisions` conversation view reads `DECISIONS.md` over the `workspaceFiles` Remote and renders its decision-register table newest first, one row per decision or milestone, with each milestone's recorded diagram state in the Diagram column and the latest milestone marked. A control over the table places the register document itself on the clipboard.
 
 ## Table of Contents
 
@@ -28,6 +28,8 @@ Use this package to see the session workspace's major-decision register without 
 Mount the package in the Web client roster beside `ui-conversation`, the `workspace-files` client face, and the resources plugin that serves the `file` provider. It registers one `conversation.view` entry (`decisions`, order 30) whose label rides the `decisions` locale namespace. The tab derives everything from the addressed Session: the Host resolves `DECISIONS.md` against that Session's workspace root, so no root travels to the browser.
 
 Rows read newest first (reverse file order). The Diagram column shows the mark a milestone row recorded — `updated`, `stale`, or `absent` — while decision rows show `—`. The latest milestone row is marked so its recorded diagram state is the one scanned first.
+
+The copy control takes the register document as read rather than re-rendering the table, so the result carries whatever rationale prose the file holds below the table. It reports what the host did with the write and reverts to its resting label after two seconds.
 
 ### Configuration
 

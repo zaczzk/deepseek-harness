@@ -22,7 +22,7 @@ kind: "package-library"
 <a id="register-grammar"></a>
 ## 登记表语法
 
-一条登记行是含六个单元格的 Markdown 表格行。`ID` 对决策为 `D<n>`，对里程碑为 `M<n>`；`Date` 为 `YYYY-MM-DD`；`Kind` 为 `decision` 或 `milestone`；`Status` 为 `proposed`、`accepted`、`superseded` 或 `done`；`Diagram` 在决策行为 `—`，在里程碑行为 `<flag>` 或 `<flag>@<fingerprint>`，其中 `flag` 取 `updated`、`stale`、`absent` 之一。`parseRegister` 按文件顺序保留格式正确的行，并跳过其他任何行，包括 kind、status 或 Diagram 单格未知的行。`nextRegisterId` 扫描原始表格行，因此已有标识不会被重新发放，即使其行格式不正确。`formatRegisterRow` 将标题截断至 200 字符、折叠空白，并把 `|` 改写为 `/`；`appendRegisterRow` 将行插入表格最后一行之后，并在文档尚无登记表时创建标准标题与表格。`diagramSource` 返回第一个闭合且非空的 ` ```mermaid ` 代码块源码。`diagramFingerprint` 是仅用于检测内容变化的 8 位十六进制 FNV-1a 哈希；`diagramFreshness` 在没有架构图时报告 `absent`，在架构图仍是里程碑记录为 stale 的那份时报告 `stale`，其余报告 `current`。
+一条登记行是以前六个单元格承载登记语法的 Markdown 表格行。`ID` 对决策为 `D<n>`，对里程碑为 `M<n>`；`Date` 为 `YYYY-MM-DD`；`Kind` 为 `decision` 或 `milestone`；`Status` 为 `proposed`、`accepted`、`superseded` 或 `done`；`Diagram` 在决策行为 `—`，在里程碑行为 `<flag>` 或 `<flag>@<fingerprint>`，其中 `flag` 取 `updated`、`stale`、`absent` 之一。带更多单元格的行属于自行追加了列的项目，其前导单元格仍然标识该行，因此这类登记表依旧可读、可追加，而不是整张表失效。`parseRegister` 按文件顺序保留格式正确的行，并跳过其他任何行，包括不足六个单元格的行，以及 kind、status 或 Diagram 单格未知的行。`nextRegisterId` 扫描原始表格行，因此已有标识不会被重新发放，即使其行格式不正确。`formatRegisterRow` 将标题截断至 200 字符、折叠空白，并把 `|` 改写为 `/`；`appendRegisterRow` 将行插入表格最后一行之后，并在文档尚无登记表时创建标准标题与表格。`diagramSource` 返回第一个闭合且非空的 ` ```mermaid ` 代码块源码。`diagramFingerprint` 是仅用于检测内容变化的 8 位十六进制 FNV-1a 哈希；`diagramFreshness` 在没有架构图时报告 `absent`，在当前源码已与里程碑记录的指纹不符时报告 `changed`，在架构图仍是里程碑记录为 stale 的那份时报告 `stale`，其余报告 `current`。
 
 -----
 

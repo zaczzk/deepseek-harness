@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-Use this package to see the session workspace's current architecture diagram without leaving the conversation. The `architecture` conversation view reads `ARCHITECTURE.md` over the `workspaceFiles` Remote, renders its first `mermaid` block with Mermaid, and shows the latest `DECISIONS.md` milestone's recorded diagram state beside the file name. A diagram a milestone recorded as stale keeps one action line over the canvas until its source changes.
+Use this package to see the session workspace's current architecture diagram without leaving the conversation. The `architecture` conversation view reads `ARCHITECTURE.md` over the `workspaceFiles` Remote, renders its first `mermaid` block with Mermaid, and shows the latest `DECISIONS.md` milestone's recorded diagram state beside the file name. A diagram that has moved since the latest milestone, or that one recorded as stale and has not yet moved, earns one action line over the canvas.
 
 ## Table of Contents
 
@@ -27,7 +27,7 @@ Use this package to see the session workspace's current architecture diagram wit
 
 Mount the package in the Web client roster beside `ui-conversation`, the `workspace-files` client face, and the resources plugin that serves the `file` provider. It registers one `conversation.view` entry (`architecture`, order 20) whose label rides the `architecture` locale namespace. The tab derives everything from the addressed Session: the Host resolves `ARCHITECTURE.md` and `DECISIONS.md` against that Session's workspace root, so no root travels to the browser.
 
-The status chip reports the diagram's live state: `current`, `stale`, or `absent`. `stale` is the state the latest milestone row recorded as `stale` while the diagram source still fingerprints as it did then; editing the source clears it.
+The status chip reports the diagram's live state: `current`, `changed`, `stale`, or `absent`. A milestone recorded a fingerprint of the diagram source, so `changed` means the current source no longer matches it and the diagram has not been through a milestone since; `stale` means the latest milestone recorded the diagram as not updated and its source still fingerprints as it did then. Both earn one action line, and editing the source moves a stale diagram to `changed` rather than clearing the warning.
 
 ### Configuration
 
@@ -39,7 +39,7 @@ None. The workspace file names (`ARCHITECTURE.md`, `DECISIONS.md`) are protocol 
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The standard `useResource` hook gives each document's metadata — its version — through the `file` provider, and the tab's own store holds the text it reads through `workspaceFiles.readBytes` and the SVG Mermaid renders for the extracted diagram source. One read runs per observed metadata version, so a failed read stays failed until the file moves again, and reads and renders of one view settle in submission order. Mermaid's browser bundle arrives as one lazily imported self-contained client chunk; `tsdown.config.ts` binds its script-scope global during bundling.
+The standard `useResource` hook gives each document's metadata — its version — through the `file` provider, and the tab's own store holds the text it reads through `workspaceFiles.readBytes` and the SVG Mermaid renders for the extracted diagram source. One read runs per observed metadata version, so a failed read stays failed until the file moves again, and reads and renders of one view settle in submission order. Mermaid's browser bundle is inlined as a static side-effect import, so the client bundle stays self-contained; `tsdown.config.ts` binds its script-scope global during bundling.
 
 ### Source map
 
@@ -49,7 +49,8 @@ The standard `useResource` hook gives each document's metadata — its version �
 | [`src/client/ArchitectureView.tsx`](src/client/ArchitectureView.tsx) | Status strip, diagram canvas, and status lines |
 | [`src/client/store.ts`](src/client/store.ts) | Per-Session document and render state |
 | [`src/client/face.ts`](src/client/face.ts) | Ordered reads and renders into the store |
-| [`src/client/render-diagram.ts`](src/client/render-diagram.ts) | Lazy Mermaid loading and SVG rendering |
+| [`src/client/render-diagram.ts`](src/client/render-diagram.ts) | Inlined Mermaid loading and SVG rendering |
+| [`src/client/failure-text.ts`](src/client/failure-text.ts) | Reducing a render failure to the one line shown beside the failure sentence |
 | — | No runtime invariant companion is published; every displayed value derives from the Host's reads at call time. |
 
 </details>
@@ -79,7 +80,7 @@ None; this package neither assembles nor sends a provider request.
 <a id="known-limitations-and-deferred-work"></a>
 
 - **One diagram per document** — only the first `mermaid` block renders; later blocks stay hidden.
-- **Mermaid dialects follow the bundled renderer** — an exotic diagram type loads its chunk from the same bundle; a source Mermaid cannot parse shows the render failure line rather than source text.
+- **Mermaid dialects follow the bundled renderer** — an exotic diagram type loads its chunk from the same bundle; a source Mermaid cannot parse shows the first line of the renderer's own error beside the failure sentence, which is tool output rather than translated copy.
 - **No pan or zoom** — the SVG scales to the canvas width and scrolls vertically.
 
 <a id="dev-note"></a>
