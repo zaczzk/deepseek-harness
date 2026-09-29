@@ -6,6 +6,9 @@ export const NS = 'decisions'
 /** Simplified Chinese dictionary (the key-set source of truth). */
 export const zh = {
   'view.decisions': '决策记录',
+  'action.copy': '复制 Markdown',
+  'action.copied': '已复制',
+  'action.copyDenied': '复制被拒绝',
   'column.id': '编号',
   'column.date': '日期',
   'column.kind': '类型',
@@ -35,6 +38,9 @@ export type DecisionsKey = keyof typeof zh
 /** English dictionary, checked complete against the zh key set. */
 export const en = {
   'view.decisions': 'Decisions',
+  'action.copy': 'Copy Markdown',
+  'action.copied': 'Copied',
+  'action.copyDenied': 'Copy denied',
   'column.id': 'ID',
   'column.date': 'Date',
   'column.kind': 'Kind',

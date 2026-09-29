@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /** The Decisions view body: the register table and its status lines. */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResourceSnapshot, UseResource } from '@deepseek-ai/dsh-client-resources/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -86,7 +86,60 @@ function seeded(instance: StoreInstance): void {
 
 afterEach(cleanup)
 
+/** Clipboard writes the next copy attempt resolves with, or undefined to reject. */
+let clipboardResult: boolean | undefined
+
+function stubClipboard(): { writeText: ReturnType<typeof vi.fn> } {
+  const writeText = vi.fn(() => clipboardResult === true
+    ? Promise.resolve()
+    : Promise.reject(new Error('denied')))
+  Object.defineProperty(globalThis.navigator, 'clipboard', { value: { writeText }, configurable: true })
+  return { writeText }
+}
+
+beforeEach(() => { clipboardResult = true })
+afterEach(() => {
+  Reflect.deleteProperty(globalThis.navigator, 'clipboard')
+})
+
 describe('DecisionsView', () => {
+  it('copies the register document and reverts the label', async () => {
+    vi.useFakeTimers()
+    try {
+      const { writeText } = stubClipboard()
+      const b = bench({ seed: seeded })
+      const button = b.container.querySelector('[data-decisions-copy]') as HTMLButtonElement
+
+      expect(button.textContent).toBe(en['action.copy'])
+      fireEvent.click(button)
+
+      await vi.waitFor(() => { expect(button.textContent).toBe(en['action.copied']) })
+      expect(writeText).toHaveBeenCalledWith(REGISTER_TEXT)
+
+      await vi.advanceTimersByTimeAsync(2_000)
+      expect(button.textContent).toBe(en['action.copy'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reports a denied clipboard write', async () => {
+    clipboardResult = false
+    stubClipboard()
+    const b = bench({ seed: seeded })
+    const button = b.container.querySelector('[data-decisions-copy]') as HTMLButtonElement
+
+    fireEvent.click(button)
+
+    await vi.waitFor(() => { expect(button.textContent).toBe(en['action.copyDenied']) })
+  })
+
+  it('offers no copy control before a register is loaded', () => {
+    const b = bench()
+
+    expect(b.container.querySelector('[data-decisions-copy]')).toBeNull()
+  })
+
   it('reads the register once per observed metadata version', () => {
     const b = bench()
     expect(b.loadRegister).toHaveBeenCalledTimes(1)
@@ -173,7 +226,9 @@ describe('DecisionsView', () => {
         instance.actions.loaded('# Decisions\n', 'v1')
       },
     })
-    expect(b.container.textContent).toBe(en.empty)
+    expect(b.container.querySelector('[data-decisions-state="empty"]')?.textContent).toBe(en.empty)
+    // The document still holds prose worth copying even without a parsed row.
+    expect(b.container.querySelector('[data-decisions-copy]')).toBeTruthy()
   })
 
   it('does not re-read a failed register until the file moves', () => {

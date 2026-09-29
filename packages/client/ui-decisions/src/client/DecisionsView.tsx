@@ -5,9 +5,10 @@
  * store's, so a body coming back to its tab re-renders nothing until the
  * document changes.
  */
-import { useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
+import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 // Type-only: the `file` ResourceProtocolMap merge behind `useResource<'file'>`.
 import type {} from '@deepseek-ai/dsh-api-workspace-files/client'
@@ -19,6 +20,7 @@ import {
 import { sessionFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
 import type { RegisterInjected } from './face.ts'
 import type { RegisterStore } from './store.ts'
+import type { DecisionsKey } from './locales.ts'
 import css from './DecisionsView.module.css'
 
 /** Full props of the Decisions view body. */
@@ -27,6 +29,19 @@ export type DecisionsViewProps =
   & PropsStore<RegisterStore>
   & InjectFace<RegisterInjected>
   & PropsLocale<'decisions'>
+
+/** The register's own state as the copy control holds it. */
+type CopyState = 'idle' | 'copied' | 'denied'
+
+/** Milliseconds a copy result stays on the button before it reverts to idle. */
+const COPY_FEEDBACK_MS = 2_000
+
+/** The button label each copy state carries. */
+const COPY_LABEL: Record<CopyState, DecisionsKey> = {
+  idle: 'action.copy',
+  copied: 'action.copied',
+  denied: 'action.copyDenied',
+}
 
 /**
  * Render the decision register table with its milestone diagram status.
@@ -38,6 +53,7 @@ export function DecisionsView({
 }: DecisionsViewProps): ReactNode {
   const meta = useResource<'file'>(sessionFileAddress(sessionId, REGISTER_FILE))
   const doc = useStore(state => state.doc)
+  const [copy, setCopy] = useState<CopyState>('idle')
 
   // One read per observed metadata version: a failed read keeps its
   // observedVersion and is not retried until the file moves again.
@@ -49,6 +65,19 @@ export function DecisionsView({
 
   const rows = useMemo(() => doc.text === undefined ? [] : parseRegister(doc.text), [doc.text])
   const milestone = latestMilestone(rows)
+  const text = doc.text
+
+  // The register document is already the Markdown a reviewer wants, so the
+  // control copies the file text rather than re-rendering the table.
+  const onCopy = useCallback(async (text: string) => {
+    setCopy(await writeClipboard(text) ? 'copied' : 'denied')
+  }, [])
+
+  useEffect(() => {
+    if (copy === 'idle') return
+    const timer = setTimeout(() => { setCopy('idle') }, COPY_FEEDBACK_MS)
+    return () => { clearTimeout(timer) }
+  }, [copy])
 
   const diagramCell = (mark: DiagramMark | null): ReactNode => {
     if (mark === null) return <span className={css.none}>{t('diagram.none')}</span>
@@ -115,5 +144,21 @@ export function DecisionsView({
     return <p className={css.status} data-decisions-state="loading">{t('loading')}</p>
   }
 
-  return <div className={css.view}>{body()}</div>
+  return (
+    <div className={css.view}>
+      {doc.status === 'ready' && text !== undefined && (
+        <div className={css.bar}>
+          <button
+            type="button"
+            className={css.copy}
+            data-decisions-copy={copy}
+            onClick={() => { void onCopy(text) }}
+          >
+            {t(COPY_LABEL[copy])}
+          </button>
+        </div>
+      )}
+      {body()}
+    </div>
+  )
 }

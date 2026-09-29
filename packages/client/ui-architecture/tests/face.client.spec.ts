@@ -93,7 +93,20 @@ describe('architectureFace', () => {
     face.renderDiagram('bad')
 
     await vi.waitFor(() => { expect(b.state().render.status).toBe('failed') })
-    expect(b.state().render).toMatchObject({ status: 'failed', source: 'bad' })
+    expect(b.state().render).toMatchObject({ status: 'failed', source: 'bad', error: 'parse' })
+  })
+
+  it('records an empty detail for a failure carrying no message', async () => {
+    const b = bench()
+    const face = architectureFace(
+      async (): Promise<ProjectTextResult> => ({ ok: true, value: { text: '', version: 'v1' } }),
+      async () => { throw 'not an Error' },
+    )(b.actions)
+
+    face.renderDiagram('bad')
+
+    await vi.waitFor(() => { expect(b.state().render.status).toBe('failed') })
+    expect(b.state().render).toMatchObject({ status: 'failed', error: '' })
   })
 
   it('keeps a settlement for a superseded render out of the store', async () => {
@@ -106,7 +119,7 @@ describe('architectureFace', () => {
     face.renderDiagram('one')
     b.actions.rendering('two')
     await flush()
-    b.actions.renderFailed('one')
+    b.actions.renderFailed('one', 'parse')
 
     expect(b.state().render).toMatchObject({ status: 'rendering', source: 'two' })
   })

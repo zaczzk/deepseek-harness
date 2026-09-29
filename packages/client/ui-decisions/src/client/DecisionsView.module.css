@@ -8,6 +8,28 @@
   padding: 12px 16px;
 }
 .table { width: 100%; border-collapse: collapse; }
+.bar {
+  display: flex;
+  justify-content: flex-end;
+  flex: none;
+  padding-bottom: 8px;
+}
+.copy {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 2px 10px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  background: var(--dsw-alias-button-floating-fill);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.copy:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.copy[data-decisions-copy='copied'] { color: var(--dsw-alias-state-success-primary); }
+.copy[data-decisions-copy='denied'] { color: var(--dsw-alias-state-error-primary); }
 .head {
   padding: 6px 8px;
   border-bottom: 0.5px solid var(--dsw-alias-border-l1);

@@ -99,6 +99,49 @@ describe('ArchitectureView', () => {
     expect(screen.getByText('M1 · 2026-09-21')).toBeTruthy()
   })
 
+  it('reports a diagram edited after its recorded milestone', () => {
+    const b = bench({
+      seed: (state) => {
+        state.architecture = { status: 'ready', text: ARCHITECTURE_TEXT, version: 'v1', observedVersion: 'v1' }
+        state.register = {
+          status: 'ready',
+          text: formatRegisterRow({
+            id: 'M1', date: '2026-09-21', kind: 'milestone', title: 'Freeze', status: 'done',
+            diagram: { flag: 'updated', fingerprint: diagramFingerprint('graph TD;\n  A-->OLD') },
+          }),
+          version: 'v1',
+          observedVersion: 'v1',
+        }
+        state.render = { status: 'ready', source: DIAGRAM, svg: '<svg></svg>' }
+      },
+    })
+    expect(b.container.querySelector('[data-architecture-chip="changed"]')).toBeTruthy()
+    expect(b.getByText(en['diagram.changed.action'])).toBeTruthy()
+    expect(b.queryByText(en['diagram.stale.action'])).toBeNull()
+  })
+
+  it('shows the render error beside the failure sentence', () => {
+    const b = bench({
+      seed: (state) => {
+        state.architecture = { status: 'ready', text: ARCHITECTURE_TEXT, version: 'v1', observedVersion: 'v1' }
+        state.render = { status: 'failed', source: DIAGRAM, error: 'Parse error on line 4:' }
+      },
+    })
+    expect(b.getByText(en['render.failed'])).toBeTruthy()
+    expect(b.container.querySelector('[data-architecture-render-error]')?.textContent).toBe('Parse error on line 4:')
+  })
+
+  it('omits the detail when the failure carried no message', () => {
+    const b = bench({
+      seed: (state) => {
+        state.architecture = { status: 'ready', text: ARCHITECTURE_TEXT, version: 'v1', observedVersion: 'v1' }
+        state.render = { status: 'failed', source: DIAGRAM, error: '' }
+      },
+    })
+    expect(b.getByText(en['render.failed'])).toBeTruthy()
+    expect(b.container.querySelector('[data-architecture-render-error]')).toBeNull()
+  })
+
   it('asks for a render when the diagram source is unrendered', () => {
     const b = bench({
       seed: (state) => {

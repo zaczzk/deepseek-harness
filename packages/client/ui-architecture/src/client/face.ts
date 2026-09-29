@@ -12,6 +12,7 @@ import {
   type ProjectTextResult,
 } from '@deepseek-ai/dsh-util-project-register'
 import type { ArchitectureStore, ProjectDocKey } from './store.ts'
+import { mermaidFailureText } from './failure-text.ts'
 
 /** Reads one project document as complete text by workspace path. */
 export type ReadProjectDoc = (path: string) => Promise<ProjectTextResult>
@@ -76,10 +77,12 @@ export function architectureFace(
         enqueue(async () => {
           try {
             actions.rendered(source, await render(source))
-          } catch {
+          } catch (error) {
             // A source Mermaid cannot parse is reported through the store's
-            // failed render state instead of propagating to the view.
-            actions.renderFailed(source)
+            // failed render state instead of propagating to the view. The
+            // renderer names the offending position, so its first line is kept
+            // as the detail beside the tab's own failure sentence.
+            actions.renderFailed(source, mermaidFailureText(error))
           }
         })
       },

@@ -21,6 +21,7 @@
 }
 .current { color: var(--dsw-alias-state-success-primary); border-color: var(--dsw-alias-state-success-secondary); }
 .stale { color: var(--dsw-alias-state-warn-label); border-color: var(--dsw-alias-state-warn-secondary); }
+.changed { color: var(--dsw-alias-state-warn-label); border-color: var(--dsw-alias-state-warn-secondary); }
 .absent { color: var(--dsw-alias-state-error-primary); border-color: var(--dsw-alias-state-error-secondary); }
 .alert {
   margin: 0;
@@ -56,3 +57,11 @@
   cursor: pointer;
 }
 .retry:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-state-warn-label);
+  font-family: var(--ds-font-family-code);
+  font-size: 12px;
+  line-height: 18px;
+}
