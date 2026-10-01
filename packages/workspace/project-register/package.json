@@ -29,6 +29,7 @@
   ],
   "dependencies": {
     "@deepseek-ai/schemastery": "workspace:^",
+    "@deepseek-ai/dsh-brand": "workspace:^",
     "@deepseek-ai/dsh-util-project-register": "workspace:^"
   },
   "peerDependencies": {

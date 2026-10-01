@@ -200,7 +200,7 @@ export function snapshotSessionEvent<T extends SessionEvent>(event: T): T {
 }
 
 /** Runtime counterpart of the {@link IgnorableEventType} envelope-marked event union. */
-const IGNORABLE_EVENT_TYPES = new Set<string>(['enhance/attempt'])
+const IGNORABLE_EVENT_TYPES = new Set<string>(['enhance/attempt', 'project/milestone'])
 
 /** Validate the fixed event envelope after one-pass JSON materialization. */
 function assertSessionEventEnvelope(value: unknown, index: number): asserts value is SessionEvent {

@@ -13675,6 +13675,9 @@ importers:
 
   packages/workspace/project-register:
     dependencies:
+      '@deepseek-ai/dsh-brand':
+        specifier: workspace:^
+        version: link:../../util/brand
       '@deepseek-ai/dsh-util-project-register':
         specifier: workspace:^
         version: link:../../util/project-register

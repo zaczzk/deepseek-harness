@@ -20,6 +20,7 @@ import {
 import {
   completedMilestones, milestoneDate, milestoneDiagram, milestoneRow, type MilestonePlan,
 } from './record.ts'
+import { brandMilestoneRow } from './types.ts'
 
 /** Stable Loader identity. */
 export const name = 'project-register'
@@ -75,13 +76,15 @@ export function apply(ctx: Context, config: Config): void {
   const chains = new Map<string, Promise<void>>()
   /**
    * Append one milestone row to a working directory's register, with the
-   * diagram evidence read at call time. Any failure warns and drops the
-   * milestone; this never throws into event dispatch.
+   * diagram evidence read at call time, then append the `project/milestone`
+   * event to the session whose register row committed. Any failure warns and
+   * drops the milestone; this never throws into event dispatch.
+   * @param session - session whose register row this append commits.
    * @param cwd - working directory holding the project files.
    * @param title - milestone title to record.
    * @returns a promise settling once the append attempt is over.
    */
-  const appendMilestone = async (cwd: string, title: string): Promise<void> => {
+  const appendMilestone = async (session: Session, cwd: string, title: string): Promise<void> => {
     try {
       const architecture = await readProjectFile(ctx.fs, ARCHITECTURE_FILE, cwd, undefined)
       const register = (await readProjectFile(ctx.fs, REGISTER_FILE, cwd, undefined)) ?? ''
@@ -90,6 +93,11 @@ export function apply(ctx: Context, config: Config): void {
       const row = milestoneRow(register, plan.title, plan.flag, plan.fingerprint, milestoneDate(new Date()))
       const target = await ctx.fs.resolve(REGISTER_FILE, { cwd })
       await ctx.fs.writeText(target, appendRegisterRow(register, row))
+      session.append('project/milestone', {
+        id: brandMilestoneRow(row.id),
+        title: row.title,
+        diagram: row.diagram,
+      }, { ignorable: true })
     } catch (error) {
       ctx.logger.warn(`project-register: dropped milestone "${title}" in "${cwd}": ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -105,7 +113,7 @@ export function apply(ctx: Context, config: Config): void {
   const record = (session: Session, title: string): void => {
     const { cwd, origin, delegationDepth } = session.header
     if (cwd === undefined || origin === 'subagent' || (delegationDepth ?? 0) > 0) return
-    chains.set(cwd, (chains.get(cwd) ?? Promise.resolve()).then(() => appendMilestone(cwd, title)))
+    chains.set(cwd, (chains.get(cwd) ?? Promise.resolve()).then(() => appendMilestone(session, cwd, title)))
   }
   ctx.on('session/event', (session, event) => {
     if (event.type !== 'todo/write') return
