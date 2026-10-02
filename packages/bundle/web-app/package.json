@@ -70,6 +70,7 @@
     "@deepseek-ai/dsh-client-resources": "workspace:^",
     "@deepseek-ai/dsh-client-ui-agent-preset": "workspace:^",
     "@deepseek-ai/dsh-client-ui-approval": "workspace:^",
+    "@deepseek-ai/dsh-client-ui-approval-rules": "workspace:^",
     "@deepseek-ai/dsh-client-ui-architecture": "workspace:^",
     "@deepseek-ai/dsh-client-ui-attachment": "workspace:^",
     "@deepseek-ai/dsh-client-ui-brand-official": "workspace:^",
