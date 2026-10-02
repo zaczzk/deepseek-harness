@@ -469,6 +469,15 @@
         thresholds: [3, 5, 8]
         argumentsPreviewChars: 500
 
+    # Per-Session budget ceiling at the owner deny. Off by default: the ceiling
+    # is optional-without-default, so a headless deployment that never asked for
+    # one boots with the guard inert. An overlay row arms it:
+    #   - id: budget-ceiling
+    #     config:
+    #       budgetCeiling: 1000000
+    - id: budget-ceiling
+      name: '@deepseek-ai/dsh-budget-ceiling'
+
     # The shared base enables the stable model-facing web_search and web_fetch
     # tools. The Web app disables this host row and composes both tools per agent
     # preset; products with a stricter network policy override tool-web. DeepSeek

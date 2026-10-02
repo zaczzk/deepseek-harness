@@ -451,6 +451,31 @@ Depends on: [`LocalConfig`](#deepseek-aidsh-bash-local)
 
 Source: [`packages/shell/bash-sandbox/src/index.ts:36`](../packages/shell/bash-sandbox/src/index.ts)
 
+<a id="deepseek-aidsh-budget-ceiling"></a>
+
+## `@deepseek-ai/dsh-budget-ceiling`
+
+Requires: `tools`
+
+```ts config-catalog
+/**
+ * Validated per-Session consumption ceiling expressed as a flat token count.
+ * Absent means no ceiling — the guard returns `undefined` for every call, and
+ * the package ships in `bundle/base`, so optional-without-default keeps a
+ * headless deployment that never asked for a ceiling from failing to boot.
+ *
+ * The ceiling counts consumed provider usage tokens (the four non-reasoning
+ * buckets plus reasoning), the same accounting `token-meter` reports but made
+ * the sole figure a decision is taken from.
+ */
+export interface Config {
+  /** Reject a tool call once its Session's consumed usage tokens reach this count. */
+  budgetCeiling?: number
+}
+```
+
+Source: [`packages/guard/budget-ceiling/src/index.ts:39`](../packages/guard/budget-ceiling/src/index.ts)
+
 <a id="deepseek-aidsh-client-connection"></a>
 
 ## `@deepseek-ai/dsh-client-connection`
