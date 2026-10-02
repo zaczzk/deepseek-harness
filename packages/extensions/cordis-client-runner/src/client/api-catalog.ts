@@ -82,6 +82,31 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'approvalRuleSets',
+    summary: 'The client approval-rules service face.',
+    description: 'The client approval-rules service face.',
+    methods: [
+      {
+        signature: 'list(): Promise<RemoteResult<ApprovalRuleListValue>>',
+        description: 'List every current (unexpired) remembered rule.',
+        parameters: [],
+        returns: 'the unexpired rule rows, or the failure for a rejected read.',
+      },
+      {
+        signature: 'save(record: ApprovalRuleRecord): Promise<RemoteResult<ApprovalRuleSaveValue>>',
+        description: 'Save (create or replace) one remembered rule.',
+        parameters: [{ name: 'record', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule, or the failure.',
+      },
+      {
+        signature: 'revoke(id: ApprovalRuleId): Promise<RemoteResult<ApprovalRuleRevokeValue>>',
+        description: 'Revoke one remembered rule by id.',
+        parameters: [{ name: 'id', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed, or the failure.',
+      },
+    ],
+  },
+  {
     key: 'layout',
     summary: 'Panel navigation and geometry actions exposed through ctx.layout.',
     description: 'Panel navigation and geometry actions exposed through ctx.layout.',
@@ -513,6 +538,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentContext',
     declaration: 'export type AgentContext = Omit<Context, \'remote\'> & {\n    readonly remote: ClientRemote & TypertRemoteScopeApi<\'agent\'>;\n};',
+  },
+  {
+    name: 'ApprovalRuleListValue',
+    declaration: 'export type ApprovalRuleListValue = readonly ApprovalRuleView[];',
+  },
+  {
+    name: 'ApprovalRuleRevokeValue',
+    declaration: 'export interface ApprovalRuleRevokeValue {\n    readonly revoked: boolean;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveValue',
+    declaration: 'export interface ApprovalRuleSaveValue {\n    readonly id: ApprovalRuleId;\n}',
   },
   {
     name: 'AssistantLiveChunkEvent',

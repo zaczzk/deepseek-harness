@@ -178,7 +178,8 @@
     "open": "^11.0.0",
     "@deepseek-ai/dsh-api-account-controller": "workspace:^",
     "@deepseek-ai/dsh-client-ui-settings-account": "workspace:^",
-    "@deepseek-ai/dsh-api-session-query-controller": "workspace:^"
+    "@deepseek-ai/dsh-api-session-query-controller": "workspace:^",
+    "@deepseek-ai/dsh-api-approval-rules": "workspace:^"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "workspace:^",

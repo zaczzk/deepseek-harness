@@ -410,6 +410,31 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'approvalRuleController',
+    summary: 'Host service backing the generated `ctx.remote.approvalRuleSets` namespace.',
+    description: 'Host service backing the generated `ctx.remote.approvalRuleSets` namespace.',
+    methods: [
+      {
+        signature: '@Remote(\'list\') async list(_request: ApprovalRuleListRequest): Promise<ApprovalRuleListValue>',
+        description: 'List every current (unexpired) remembered rule, ordered by name. The roster is a request/response snapshot: a UI re-reads it to refresh after a write, and no stream state lives on this side.',
+        parameters: [{ name: '_request', description: 'reserved request wrapper (the un-fenced rule list takes no argument).' }],
+        returns: 'the unexpired remembered-rule rows, ordered by name.',
+      },
+      {
+        signature: '@Remote(\'save\') async save(request: ApprovalRuleSaveRequest): Promise<ApprovalRuleSaveValue>',
+        description: 'Save (create or replace) one remembered rule and write-prune any rule now expired, atomically through the store\'s single-open domain. The returned branded id is the rule the row renders and revoke targets.',
+        parameters: [{ name: 'request', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule.',
+      },
+      {
+        signature: '@Remote(\'revoke\') async revoke(request: ApprovalRuleRevokeRequest): Promise<ApprovalRuleRevokeValue>',
+        description: 'Revoke one remembered rule by its branded id.',
+        parameters: [{ name: 'request', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed.',
+      },
+    ],
+  },
+  {
     key: 'approvalRules',
     summary: 'The rule store service: `ctx.approvalRules`.',
     description: 'The rule store service: `ctx.approvalRules`. Opens the `approval_rules` domain over the injected storage-domain facility and exposes the durable rule CRUD the Remote and the Settings seat share. The answerer path reads the same opened table through ApprovalRuleStore.lookup.',
@@ -4407,8 +4432,32 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type ApprovalRuleId = Branded<\'ApprovalRuleId\'>;',
   },
   {
+    name: 'ApprovalRuleListRequest',
+    declaration: 'export interface ApprovalRuleListRequest {\n    readonly _?: never;\n}',
+  },
+  {
+    name: 'ApprovalRuleListValue',
+    declaration: 'export type ApprovalRuleListValue = readonly ApprovalRuleView[];',
+  },
+  {
     name: 'ApprovalRuleRecord',
     declaration: 'export type ApprovalRuleRecord = z.infer<typeof approvalRuleRecord>;',
+  },
+  {
+    name: 'ApprovalRuleRevokeRequest',
+    declaration: 'export interface ApprovalRuleRevokeRequest {\n    readonly id: ApprovalRuleId;\n}',
+  },
+  {
+    name: 'ApprovalRuleRevokeValue',
+    declaration: 'export interface ApprovalRuleRevokeValue {\n    readonly revoked: boolean;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveRequest',
+    declaration: 'export interface ApprovalRuleSaveRequest {\n    readonly record: ApprovalRuleRecord;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveValue',
+    declaration: 'export interface ApprovalRuleSaveValue {\n    readonly id: ApprovalRuleId;\n}',
   },
   {
     name: 'ApprovalRuleView',

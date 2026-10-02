@@ -178,6 +178,22 @@ Depends on: [`ToolPresentationMode`](subsystems/tools.md)
 
 Source: [`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/core/agent-tool-presentation/src/index.ts)
 
+<a id="deepseek-aidsh-api-approval-rules"></a>
+
+## `@deepseek-ai/dsh-api-approval-rules`
+
+Requires: `approvalRules` · `typert`
+
+```ts config-catalog
+/** Approval Rules Controller deployment policy. */
+export interface Config {
+  /** Reserved for deployment-tunable rule-management bounds; no field is shipped. */
+  readonly _?: never
+}
+```
+
+Source: [`packages/api/approval-rules/src/index.ts:37`](../packages/api/approval-rules/src/index.ts)
+
 <a id="deepseek-aidsh-api-gateway"></a>
 
 ## `@deepseek-ai/dsh-api-gateway`

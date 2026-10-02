@@ -21,6 +21,7 @@ const CLIENT_SERVICES: Readonly<Record<string, readonly string[]>> = {
   ],
   workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession', 'unarchiveSession'],
   sessionQueries: ['listSessions', 'readSession', 'filterEvents', 'traceSession'],
+  approvalRuleSets: ['list', 'save', 'revoke'],
 }
 
 const CLIENT_EVENTS = new Set([

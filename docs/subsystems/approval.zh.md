@@ -143,6 +143,41 @@ Types: [Agent](core.zh.md) · [Session](session.zh.md)
 
 Source: [`packages/interaction/user-approval/src/index.ts`](../../packages/interaction/user-approval/src/index.ts)
 
+<a id="ctxapprovalrulecontroller--approvalrulecontroller"></a>
+
+### `ctx.approvalRuleController` — `ApprovalRuleController`
+
+Host service backing the generated `ctx.remote.approvalRuleSets` namespace.
+
+```ts cordis-catalog
+/**
+ * List every current (unexpired) remembered rule, ordered by name. The
+ * roster is a request/response snapshot: a UI re-reads it to refresh after
+ * a write, and no stream state lives on this side.
+ * @param _request - reserved request wrapper (the un-fenced rule list takes no argument).
+ * @returns the unexpired remembered-rule rows, ordered by name.
+ */
+@Remote('list') async list(_request: ApprovalRuleListRequest): Promise<ApprovalRuleListValue>
+
+/**
+ * Save (create or replace) one remembered rule and write-prune any rule now
+ * expired, atomically through the store's single-open domain. The returned
+ * branded id is the rule the row renders and revoke targets.
+ * @param request - the durable rule fields to store.
+ * @returns the branded id of the saved rule.
+ */
+@Remote('save') async save(request: ApprovalRuleSaveRequest): Promise<ApprovalRuleSaveValue>
+
+/**
+ * Revoke one remembered rule by its branded id.
+ * @param request - the branded id of the rule to revoke.
+ * @returns whether a rule with that id existed and was removed.
+ */
+@Remote('revoke') async revoke(request: ApprovalRuleRevokeRequest): Promise<ApprovalRuleRevokeValue>
+```
+
+Source: [`packages/api/approval-rules/src/index.ts`](../../packages/api/approval-rules/src/index.ts)
+
 <a id="ctxapprovalrules--approvalrulestore"></a>
 
 ### `ctx.approvalRules` — `ApprovalRuleStore`

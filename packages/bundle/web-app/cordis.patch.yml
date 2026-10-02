@@ -109,6 +109,9 @@
     # Session query reads, replays, filters, and traces over Typert Remote.
     - id: session-query-controller
       name: '@deepseek-ai/dsh-api-session-query-controller'
+    # Remembered approval-rule management (list, save, revoke) over Typert Remote.
+    - id: approval-rules
+      name: '@deepseek-ai/dsh-api-approval-rules'
     # Workspace file service: bounded read, directory listing, and the
     # agent-write change feed inside the session workspace root.
     - id: terminal-controller

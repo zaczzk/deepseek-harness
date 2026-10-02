@@ -21,6 +21,7 @@ import subagentsRemote from '@deepseek-ai/dsh-subagent/remote'
 import sessionRemote from '@deepseek-ai/dsh-api-session-controller/remote'
 import jobRemote from '@deepseek-ai/dsh-api-job-controller/remote'
 import sessionQueryControllerRemote from '@deepseek-ai/dsh-api-session-query-controller/remote'
+import approvalRulesControllerRemote from '@deepseek-ai/dsh-api-approval-rules/remote'
 import workspaceRemote from '@deepseek-ai/dsh-api-workspace-controller/remote'
 import terminalRemote from '@deepseek-ai/dsh-api-terminal-controller/remote'
 import workspaceFilesRemote from '@deepseek-ai/dsh-api-workspace-files/remote'
@@ -56,6 +57,8 @@ export type {} from '@deepseek-ai/dsh-api-job-controller/remote'
 export type * from '@deepseek-ai/dsh-api-job-controller/types'
 export type {} from '@deepseek-ai/dsh-api-session-query-controller/remote'
 export type * from '@deepseek-ai/dsh-api-session-query-controller/types'
+export type {} from '@deepseek-ai/dsh-api-approval-rules/remote'
+export type * from '@deepseek-ai/dsh-api-approval-rules/types'
 export type {} from '@deepseek-ai/dsh-api-workspace-controller/remote'
 export type * from '@deepseek-ai/dsh-api-workspace-controller/types'
 export type {} from '@deepseek-ai/dsh-api-workspace-files/remote'
@@ -177,7 +180,7 @@ export async function apply(ctx: Context): Promise<() => Promise<void>> {
     for (const contribution of [
       agentPresetsRemote, commandsRemote, enhanceRemote, settingsControllerRemote, accountRemote, goalsRemote, llmRemote, dynamicRemote,
       pluginInventoryRemote, pluginManagerRemote, messageFeedbackRemote, sessionFeedbackRemote, fileUploadsRemote, sessionReferencesRemote,
-      permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, sessionQueryControllerRemote,
+      permissionPresetsRemote, subagentsRemote, sessionRemote, jobRemote, sessionQueryControllerRemote, approvalRulesControllerRemote,
       workspaceRemote, workspaceFilesRemote, terminalRemote, officeToPdfRemote,
     ]) {
       disposers.push(await ctx.remote.$mount(contribution))

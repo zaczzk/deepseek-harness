@@ -265,6 +265,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Wraps the session-query domain\'s exact reads, traces, and filters over the generated Remote namespace; it is a thin seam owning no query state, translating the domain\'s typed failures onto the Remote error channel.',
   },
   {
+    key: 'approvalRuleController',
+    pkg: 'api-approval-rules',
+    title: 'Host approval-rules Remote controller',
+    mode: 'core',
+    note: 'Wraps the durable remembered-rule store\'s list, save, and revoke over the generated Remote namespace; it is a thin seam owning no grant lifecycle, mapping the store\'s failures onto the Remote error channel.',
+  },
+  {
     key: 'credentialsController',
     pkg: 'api-settings-controller',
     title: 'Host credential-surface Remote controller',
