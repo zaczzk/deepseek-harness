@@ -38,6 +38,23 @@ export interface JobKillValue {
   readonly outcome: 'requested' | 'already-finished'
 }
 
+/**
+ * Target of one `job.hasRows` read: the sessions whose visible job sets the
+ * read tests. The request carries the caller's session ids and the Host reads
+ * `ctx.jobs` rosters for exactly those Sessions — the same caller-argument
+ * fence each registry read applies — never another browser's roster.
+ */
+export interface JobHasRowsRequest {
+  /** Sessions the caller wants tested for at least one visible job row. */
+  readonly sessionIds: readonly SessionId[]
+}
+
+/** Which of the requested sessions held at least one job row at read time. */
+export interface JobHasRowsValue {
+  /** The requested sessions whose visible roster held at least one row. */
+  readonly withJobRows: readonly SessionId[]
+}
+
 declare module '@deepseek-ai/dsh-typert-protocol' {
   interface RemoteErrorDetailsMap {
     /** The session's job list no longer carries a killable row under that id. */

@@ -12,7 +12,9 @@ import { RemoteStreamCarrierError, type ClientRemote } from '@deepseek-ai/dsh-ap
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 import type { JobId } from '@deepseek-ai/dsh-jobs/brand'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
-import type { JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest } from '../types.ts'
+import type {
+  JobFollowFrame, JobFollowRequest, JobHasRowsRequest, JobHasRowsValue, JobKillRequest, JobKillValue, JobListFrame, JobListRequest,
+} from '../types.ts'
 import type { ClientJobsModel, JobsSource } from './model.ts'
 
 /** The generated `job` namespace face the stream runners drive. */
@@ -31,6 +33,12 @@ export interface JobRemote {
    * @returns the frame sequence of one generation.
    */
   follow(request: JobFollowRequest, signal?: AbortSignal): AsyncIterable<JobFollowFrame>
+  /**
+   * Test which sessions hold at least one visible job row.
+   * @param request - the sessions whose visible rosters to test.
+   * @returns the requested sessions that held at least one row.
+   */
+  hasRows(request: JobHasRowsRequest): Promise<RemoteResult<JobHasRowsValue>>
   /**
    * Kill one job on the human's behalf.
    * @param request - the session whose list carries the job, and the job id.
@@ -73,6 +81,16 @@ export interface IJobs {
    * @returns the registry's admission, or the business/transport failure.
    */
   kill(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobKillValue>>
+  /**
+   * Test which sessions hold at least one visible job row. Pure RPC
+   * passthrough: the predicate's result set is authoritative at the moment the
+   * Host read it, and the caller (the Workspace browser's Agent-activity
+   * filter) owns realtime convergence, re-issuing the read as its refresh rule.
+   * @param sessionIds - the sessions whose visible rosters to test.
+   * @returns the requested sessions that held at least one row, or the
+   * business/transport failure.
+   */
+  hasRows(sessionIds: readonly SessionId[]): Promise<RemoteResult<JobHasRowsValue>>
 }
 
 /** One reference-counted stream. */
@@ -122,6 +140,10 @@ export class ClientJobs extends Service implements IJobs {
 
   kill(sessionId: SessionId, id: JobId): Promise<RemoteResult<JobKillValue>> {
     return this.remote.job.kill({ sessionId, jobId: id })
+  }
+
+  hasRows(sessionIds: readonly SessionId[]): Promise<RemoteResult<JobHasRowsValue>> {
+    return this.remote.job.hasRows({ sessionIds })
   }
 
   watchRows(sessionId: SessionId): () => void {

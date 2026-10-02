@@ -621,6 +621,8 @@ export const LINK_MAP: Readonly<Record<string, string>> = {
   JobId: 'jobs.md',
   JobKillRequest: 'jobs.md',
   JobKillValue: 'jobs.md',
+  JobHasRowsRequest: 'jobs.md',
+  JobHasRowsValue: 'jobs.md',
   JobFollowFrame: 'jobs.md',
   JobFollowRequest: 'jobs.md',
   JobListFrame: 'jobs.md',

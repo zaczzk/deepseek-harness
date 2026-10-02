@@ -379,6 +379,18 @@ Host service backing the generated `ctx.remote.job` namespace.
  * @returns the registry's admission of the kill request.
  */
 @Remote('kill') kill(request: JobKillRequest): JobKillValue
+
+/**
+ * Test which of the requested sessions hold at least one visible job row.
+ * One caller-argument fence read per listed session — `ctx.jobs.list(sessionId)`
+ * returns exactly the jobs that Session can see, so the read never reveals
+ * another browser's roster. The predicate is row presence only: it answers
+ * the Workspace browser's Agent-activity filter, which asks whether a Session
+ * owns (or can see) any background job, not what those jobs are.
+ * @param request - the sessions whose visible rosters to test.
+ * @returns the requested sessions that held at least one row.
+ */
+@Remote('hasRows') hasRows(request: JobHasRowsRequest): JobHasRowsValue
 ```
 
 Source: [`packages/api/job-controller/src/index.ts`](../../packages/api/job-controller/src/index.ts)

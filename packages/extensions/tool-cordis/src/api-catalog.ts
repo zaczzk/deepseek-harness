@@ -1347,6 +1347,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         parameters: [{ name: 'request', description: 'Session whose job list carries the job, and the job id.' }],
         returns: 'the registry\'s admission of the kill request.',
       },
+      {
+        signature: '@Remote(\'hasRows\') hasRows(request: JobHasRowsRequest): JobHasRowsValue',
+        description: 'Test which of the requested sessions hold at least one visible job row. One caller-argument fence read per listed session — `ctx.jobs.list(sessionId)` returns exactly the jobs that Session can see, so the read never reveals another browser\'s roster. The predicate is row presence only: it answers the Workspace browser\'s Agent-activity filter, which asks whether a Session owns (or can see) any background job, not what those jobs are.',
+        parameters: [{ name: 'request', description: 'the sessions whose visible rosters to test.' }],
+        returns: 'the requested sessions that held at least one row.',
+      },
     ],
   },
   {
@@ -5374,6 +5380,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'JobHandle',
     declaration: 'export interface JobHandle {\n    readonly id: JobId;\n    append(text: string, options?: JobAppendOptions): void;\n    updateProgress(line: string): void;\n}',
+  },
+  {
+    name: 'JobHasRowsRequest',
+    declaration: 'export interface JobHasRowsRequest {\n    readonly sessionIds: readonly SessionId[];\n}',
+  },
+  {
+    name: 'JobHasRowsValue',
+    declaration: 'export interface JobHasRowsValue {\n    readonly withJobRows: readonly SessionId[];\n}',
   },
   {
     name: 'JobHooks',
