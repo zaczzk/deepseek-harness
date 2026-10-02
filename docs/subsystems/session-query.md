@@ -506,4 +506,51 @@ async readEvent(request: SessionEventReadRequest, signal?: AbortSignal): Promise
 Types: [SessionId](core.md) · [SessionTitleSnapshot](session-title.md)
 
 Source: [`packages/session-query/session-query/src/index.ts`](../../packages/session-query/session-query/src/index.ts)
+
+<a id="ctxsessionquerycontroller--sessionquerycontroller"></a>
+
+### `ctx.sessionQueryController` — `SessionQueryController`
+
+Host service backing the generated `ctx.remote.sessionQueries` namespace.
+
+```ts cordis-catalog
+/**
+ * List the complete logical corpus, newest first, with live/persisted flags.
+ * The roster is a request/response snapshot: a UI re-reads it to refresh,
+ * and no stream state lives on this side.
+ * @param _request - reserved request wrapper (the un-fenced corpus list takes no argument).
+ * @returns the deterministic newest-first cloned session records.
+ */
+@Remote('listSessions') async listSessions(_request: SessionQueryListRequest): Promise<SessionQueryListValue>
+
+/**
+ * Read and replay-validate one complete logical session log without making
+ * it live. The request's session id is the read target; a UI must constrain
+ * which sessions its caller may inspect (the query service has no caller
+ * authorization). The domain's raw log events are projected onto a bounded
+ * wire envelope (each event's validated JSON data under `data: JsonValue`)
+ * before they cross the Remote boundary.
+ * @param request - live or persisted session id to read.
+ * @returns the cloned header and complete raw event log from one observation, JSON-bounded.
+ */
+@Remote('readSession') async readSession(request: SessionQueryReadRequest): Promise<SessionQueryReadValue>
+
+/**
+ * Filter one logical session's first-party event documents with ANDed
+ * metadata and literal-text predicates.
+ * @param request - target session id and the ANDed predicate set.
+ * @returns matching semantic documents in ascending seq order.
+ */
+@Remote('filterEvents') async filterEvents(request: SessionQueryFilterEventsRequest): Promise<SessionQueryFilterEventsValue>
+
+/**
+ * Trace known ancestry and descendants for one logical session from one
+ * corpus observation.
+ * @param request - logical session id to trace.
+ * @returns a complete lineage or the first parent that could not be resolved.
+ */
+@Remote('traceSession') async traceSession(request: SessionQueryTraceRequest): Promise<SessionQueryTraceValue>
+```
+
+Source: [`packages/api/session-query-controller/src/index.ts`](../../packages/api/session-query-controller/src/index.ts)
 <!-- END GENERATED cordis-surface -->

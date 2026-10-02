@@ -178,6 +178,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sessionQueries',
+    summary: 'The client session-query service face.',
+    description: 'The client session-query service face.',
+    methods: [
+      {
+        signature: 'listSessions(): Promise<RemoteResult<SessionQueryListValue>>',
+        description: 'List the complete logical corpus, newest first, with live/persisted flags.',
+        parameters: [],
+        returns: 'the records, or the typed/transport failure for a rejection.',
+      },
+      {
+        signature: 'readSession(sessionId: SessionIdLike): Promise<RemoteResult<SessionQueryReadValue>>',
+        description: 'Read and replay-validate one complete logical session log.',
+        parameters: [{ name: 'sessionId', description: 'the session to read.' }],
+        returns: 'the cloned header and complete raw log, or the failure.',
+      },
+      {
+        signature: 'filterEvents(sessionId: SessionIdLike, filters: SessionQueryFilterEventsRequest[\'filters\']): Promise<RemoteResult<SessionQueryFilterEventsValue>>',
+        description: 'Filter one logical session\'s event documents.',
+        parameters: [{ name: 'sessionId', description: 'the session to scan.' }, { name: 'filters', description: 'ANDed metadata and literal-text predicates.' }],
+        returns: 'matching documents, or the failure.',
+      },
+      {
+        signature: 'traceSession(sessionId: SessionIdLike): Promise<RemoteResult<SessionQueryTraceValue>>',
+        description: 'Trace ancestry and descendants for one logical session.',
+        parameters: [{ name: 'sessionId', description: 'the session to trace.' }],
+        returns: 'the lineage, or the failure.',
+      },
+    ],
+  },
+  {
     key: 'sessions',
     summary: 'The sessions-service face injected as `ctx.sessions`.',
     description: 'The sessions-service face injected as `ctx.sessions`.',
@@ -874,6 +905,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionProviderComponent',
     declaration: 'export type SessionProviderComponent = (props: SessionAreaProps) => ReactNode;',
+  },
+  {
+    name: 'SessionQueryFilterEventsRequest',
+    declaration: 'export interface SessionQueryFilterEventsRequest {\n    readonly sessionId: SessionId;\n    readonly filters: readonly SessionEventResultFilter[];\n}',
+  },
+  {
+    name: 'SessionQueryFilterEventsValue',
+    declaration: 'export type SessionQueryFilterEventsValue = readonly SessionEventSearchDocument[];',
+  },
+  {
+    name: 'SessionQueryListValue',
+    declaration: 'export type SessionQueryListValue = readonly import(\'@deepseek-ai/dsh-session-query\').SessionRecord[];',
+  },
+  {
+    name: 'SessionQueryReadValue',
+    declaration: 'export type SessionQueryReadValue = SessionQueryWireLogSnapshot;',
+  },
+  {
+    name: 'SessionQueryTraceValue',
+    declaration: 'export type SessionQueryTraceValue = SessionLineageTrace;',
+  },
+  {
+    name: 'SessionQueryWireEvent',
+    declaration: 'export interface SessionQueryWireEvent {\n    readonly type: string;\n    readonly seq: number;\n    readonly time: number;\n    readonly data: JsonValue;\n    readonly ignorable?: true;\n    readonly sourceEventSeqs?: JsonValue;\n    readonly surfaceOp?: JsonValue;\n}',
+  },
+  {
+    name: 'SessionQueryWireLogSnapshot',
+    declaration: 'export interface SessionQueryWireLogSnapshot {\n    readonly session: import(\'@deepseek-ai/dsh-session\').SessionHeader;\n    readonly inheritedEventCount: number;\n    readonly events: readonly SessionQueryWireEvent[];\n}',
   },
   {
     name: 'SessionReference',

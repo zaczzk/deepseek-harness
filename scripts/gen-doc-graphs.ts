@@ -258,6 +258,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Streams one background job\'s observation record over the generated Remote namespace; the roster stays on the session control stream.',
   },
   {
+    key: 'sessionQueryController',
+    pkg: 'api-session-query-controller',
+    title: 'Host session-query Remote controller',
+    mode: 'core',
+    note: 'Wraps the session-query domain\'s exact reads, traces, and filters over the generated Remote namespace; it is a thin seam owning no query state, translating the domain\'s typed failures onto the Remote error channel.',
+  },
+  {
     key: 'credentialsController',
     pkg: 'api-settings-controller',
     title: 'Host credential-surface Remote controller',

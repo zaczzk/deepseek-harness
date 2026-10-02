@@ -20,6 +20,7 @@ const CLIENT_SERVICES: Readonly<Record<string, readonly string[]>> = {
     'pickDirectory', 'listDirectory', 'createDirectory',
   ],
   workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession', 'unarchiveSession'],
+  sessionQueries: ['listSessions', 'readSession', 'filterEvents', 'traceSession'],
 }
 
 const CLIENT_EVENTS = new Set([

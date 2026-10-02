@@ -2203,6 +2203,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sessionQueryController',
+    summary: 'Host service backing the generated `ctx.remote.sessionQueries` namespace.',
+    description: 'Host service backing the generated `ctx.remote.sessionQueries` namespace.',
+    methods: [
+      {
+        signature: '@Remote(\'listSessions\') async listSessions(_request: SessionQueryListRequest): Promise<SessionQueryListValue>',
+        description: 'List the complete logical corpus, newest first, with live/persisted flags. The roster is a request/response snapshot: a UI re-reads it to refresh, and no stream state lives on this side.',
+        parameters: [{ name: '_request', description: 'reserved request wrapper (the un-fenced corpus list takes no argument).' }],
+        returns: 'the deterministic newest-first cloned session records.',
+      },
+      {
+        signature: '@Remote(\'readSession\') async readSession(request: SessionQueryReadRequest): Promise<SessionQueryReadValue>',
+        description: 'Read and replay-validate one complete logical session log without making it live. The request\'s session id is the read target; a UI must constrain which sessions its caller may inspect (the query service has no caller authorization). The domain\'s raw log events are projected onto a bounded wire envelope (each event\'s validated JSON data under `data: JsonValue`) before they cross the Remote boundary.',
+        parameters: [{ name: 'request', description: 'live or persisted session id to read.' }],
+        returns: 'the cloned header and complete raw event log from one observation, JSON-bounded.',
+      },
+      {
+        signature: '@Remote(\'filterEvents\') async filterEvents(request: SessionQueryFilterEventsRequest): Promise<SessionQueryFilterEventsValue>',
+        description: 'Filter one logical session\'s first-party event documents with ANDed metadata and literal-text predicates.',
+        parameters: [{ name: 'request', description: 'target session id and the ANDed predicate set.' }],
+        returns: 'matching semantic documents in ascending seq order.',
+      },
+      {
+        signature: '@Remote(\'traceSession\') async traceSession(request: SessionQueryTraceRequest): Promise<SessionQueryTraceValue>',
+        description: 'Trace known ancestry and descendants for one logical session from one corpus observation.',
+        parameters: [{ name: 'request', description: 'logical session id to trace.' }],
+        returns: 'a complete lineage or the first parent that could not be resolved.',
+      },
+    ],
+  },
+  {
     key: 'sessionReferenceResolver',
     summary: 'Exact-read consumer that prepares immutable cross-session message context.',
     description: 'Exact-read consumer that prepares immutable cross-session message context.',
@@ -4933,6 +4964,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type EnhanceAttemptId = Branded<\'EnhanceAttemptId\'>;',
   },
   {
+    name: 'EnhanceDirection',
+    declaration: 'export type EnhanceDirection = \'enhance\' | \'compact\';',
+  },
+  {
+    name: 'EnhanceGoalDraft',
+    declaration: 'export interface EnhanceGoalDraft {\n    readonly objective: string;\n    readonly completionCriteria: readonly string[];\n}',
+  },
+  {
+    name: 'EnhanceLanguage',
+    declaration: 'export type EnhanceLanguage = \'en\' | \'zh\';',
+  },
+  {
     name: 'EnhancePreviewChunk',
     declaration: 'export interface EnhancePreviewChunk {\n    readonly text: string;\n}',
   },
@@ -4943,6 +4986,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EnhancePreviewResult',
     declaration: 'export interface EnhancePreviewResult {\n    readonly route: EnhanceRoute;\n    readonly matchedRule: string;\n    readonly depth: string;\n    readonly direction: EnhanceDirection;\n    readonly outputLanguage: EnhanceLanguage;\n    readonly sections: EnhanceSections;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'EnhanceRoute',
+    declaration: 'export type EnhanceRoute = \'skip\' | \'enhance\' | \'split\' | \'fold\';',
+  },
+  {
+    name: 'EnhanceSections',
+    declaration: 'export interface EnhanceSections {\n    readonly objective: string;\n    readonly context?: string;\n    readonly constraints?: readonly string[];\n    readonly acceptance: readonly string[];\n    readonly verification?: readonly string[];\n    readonly doneLooksLike?: readonly string[];\n    readonly goal?: EnhanceGoalDraft;\n    readonly todos?: readonly string[];\n}',
   },
   {
     name: 'EpochHeader',
@@ -5102,7 +5153,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'IgnorableEventType',
-    declaration: 'export type IgnorableEventType = \'enhance/attempt\';',
+    declaration: 'export type IgnorableEventType = \'enhance/attempt\' | \'project/milestone\';',
   },
   {
     name: 'IgnorableIntent',
@@ -6423,6 +6474,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionPromptValue',
     declaration: 'export interface SessionPromptValue {\n    readonly accepted: true;\n}',
+  },
+  {
+    name: 'SessionQueryFilterEventsRequest',
+    declaration: 'export interface SessionQueryFilterEventsRequest {\n    readonly sessionId: SessionId;\n    readonly filters: readonly SessionEventResultFilter[];\n}',
+  },
+  {
+    name: 'SessionQueryFilterEventsValue',
+    declaration: 'export type SessionQueryFilterEventsValue = readonly SessionEventSearchDocument[];',
+  },
+  {
+    name: 'SessionQueryListRequest',
+    declaration: 'export interface SessionQueryListRequest {\n    readonly _?: never;\n}',
+  },
+  {
+    name: 'SessionQueryListValue',
+    declaration: 'export type SessionQueryListValue = readonly import(\'@deepseek-ai/dsh-session-query\').SessionRecord[];',
+  },
+  {
+    name: 'SessionQueryReadRequest',
+    declaration: 'export interface SessionQueryReadRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionQueryReadValue',
+    declaration: 'export type SessionQueryReadValue = SessionQueryWireLogSnapshot;',
+  },
+  {
+    name: 'SessionQueryTraceRequest',
+    declaration: 'export interface SessionQueryTraceRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionQueryTraceValue',
+    declaration: 'export type SessionQueryTraceValue = SessionLineageTrace;',
+  },
+  {
+    name: 'SessionQueryWireEvent',
+    declaration: 'export interface SessionQueryWireEvent {\n    readonly type: string;\n    readonly seq: number;\n    readonly time: number;\n    readonly data: JsonValue;\n    readonly ignorable?: true;\n    readonly sourceEventSeqs?: JsonValue;\n    readonly surfaceOp?: JsonValue;\n}',
+  },
+  {
+    name: 'SessionQueryWireLogSnapshot',
+    declaration: 'export interface SessionQueryWireLogSnapshot {\n    readonly session: import(\'@deepseek-ai/dsh-session\').SessionHeader;\n    readonly inheritedEventCount: number;\n    readonly events: readonly SessionQueryWireEvent[];\n}',
   },
   {
     name: 'SessionRecord',

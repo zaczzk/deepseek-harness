@@ -232,6 +232,22 @@ export interface Config {
 
 来源： [`packages/api/session-controller/src/index.ts:79`](../packages/api/session-controller/src/index.ts)
 
+<a id="deepseek-aidsh-api-session-query-controller"></a>
+
+## `@deepseek-ai/dsh-api-session-query-controller`
+
+需要： `sessionQuery` · `typert`
+
+```ts config-catalog
+/** Session Query Controller deployment policy. */
+export interface Config {
+  /** Reserved for deployment-tunable read bounds; no field is shipped. */
+  readonly _?: never
+}
+```
+
+来源： [`packages/api/session-query-controller/src/index.ts:41`](../packages/api/session-query-controller/src/index.ts)
+
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
 ## `@deepseek-ai/dsh-api-settings-controller`
@@ -580,6 +596,11 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` registers the
+   * command with its result reporting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 ```
 
@@ -739,6 +760,11 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` mounts the
+   * service with previews rejecting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 ```
 
@@ -1392,7 +1418,7 @@ export interface Config {
 ```ts config-catalog
 /** Token-plan usage reader configuration. */
 export interface Config {
-  /** Console origin serving the Token Plan usage endpoint. */
+  /** Console origin serving the Token Plan endpoints. */
   readonly origin: Volatile<string>
   /** Stored console session cookie value; empty keeps the reader idle. */
   readonly session: Volatile<string>
@@ -1400,7 +1426,7 @@ export interface Config {
   readonly sessionEnv: Volatile<string>
   /** Interval between usage polls, in milliseconds. */
   readonly pollIntervalMs: Volatile<number>
-  /** Per-request deadline for one usage poll, in milliseconds. */
+  /** Per-request deadline for one poll, in milliseconds. */
   readonly timeoutMs: Volatile<number>
 }
 ```
@@ -4193,6 +4219,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-milestone`（[`packages/client/ui-milestone/src/index.ts`](../packages/client/ui-milestone/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-open-in-app`（[`packages/client/ui-open-in-app/src/index.ts`](../packages/client/ui-open-in-app/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）
