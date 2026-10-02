@@ -66,8 +66,10 @@ describe('ApprovalRuleController client half', () => {
       : saved)
       .toMatchObject({ id: ApprovalRuleId('saved-1') })
     const revoked = await ctx.approvalRuleSets.revoke(ApprovalRuleId('rule-1'))
-    expect((revoked as RemoteResult<ApprovalRuleRevokeValue>).ok ? revoked : revoked)
-      .toEqual({ ok: false, error: { code: 'approval-rules/error', message: 'missing', details: {} } })
+    expect(revoked).toEqual({
+      ok: false,
+      error: { code: 'approval-rules/error', message: 'missing', details: {} },
+    })
 
     expect(calls).toEqual([
       { method: 'list', request: {} },
