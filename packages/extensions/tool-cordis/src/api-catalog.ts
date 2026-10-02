@@ -410,6 +410,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'approvalRules',
+    summary: 'The rule store service: `ctx.approvalRules`.',
+    description: 'The rule store service: `ctx.approvalRules`. Opens the `approval_rules` domain over the injected storage-domain facility and exposes the durable rule CRUD the Remote and the Settings seat share. The answerer path reads the same opened table through ApprovalRuleStore.lookup.',
+    methods: [
+      {
+        signature: 'list(): ApprovalRuleView[]',
+        description: 'List every current (unexpired) remembered rule. Expired rules are already pruned on write, so this read is authoritative.',
+        parameters: [],
+        returns: 'the unexpired rules, newest first.',
+      },
+      {
+        signature: 'async save(record: ApprovalRuleRecord): Promise<ApprovalRuleId>',
+        description: 'Save (create or replace) one rule and write-prune any rule now expired.',
+        parameters: [{ name: 'record', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule.',
+      },
+      {
+        signature: 'async revoke(id: ApprovalRuleId): Promise<boolean>',
+        description: 'Revoke one rule by id.',
+        parameters: [{ name: 'id', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed.',
+      },
+      {
+        signature: 'lookup(tool: string): ApprovalRuleView | undefined',
+        description: 'The durable rule answering one tool name, if any, evaluating a rule\'s `expiresAt` (an expired rule never answers). Tool-name granularity: the first match by creation order wins.',
+        parameters: [{ name: 'tool', description: 'the tool name the request asks about.' }],
+        returns: 'the answering rule and its id, or `undefined` when none applies.',
+      },
+    ],
+  },
+  {
     key: 'attachments',
     summary: 'Immutable binary attachment service.',
     description: 'Immutable binary attachment service. Implementations validate bytes before publishing a reference.',
@@ -4370,6 +4401,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ApprovalRequestEvent',
     declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
+  },
+  {
+    name: 'ApprovalRuleId',
+    declaration: 'export type ApprovalRuleId = Branded<\'ApprovalRuleId\'>;',
+  },
+  {
+    name: 'ApprovalRuleRecord',
+    declaration: 'export type ApprovalRuleRecord = z.infer<typeof approvalRuleRecord>;',
+  },
+  {
+    name: 'ApprovalRuleView',
+    declaration: 'export interface ApprovalRuleView {\n    readonly id: ApprovalRuleId;\n    readonly record: ApprovalRuleRecord;\n}',
   },
   {
     name: 'ArchiveSessionOptions',

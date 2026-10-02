@@ -33,6 +33,9 @@
       "path": "../../core/agent"
     },
     {
+      "path": "../../storage/storage-domain"
+    },
+    {
       "path": "../../core/system-prompt"
     },
     {

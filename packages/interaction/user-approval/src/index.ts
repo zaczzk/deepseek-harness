@@ -47,9 +47,13 @@ declare module '@deepseek-ai/dsh-session/types' {
 
 import { ApprovalRequestId } from './types.ts'
 import type { ApprovalOutcome, ApprovalRequestEvent } from './types.ts'
+import { ApprovalRuleStore } from './rules-store.ts'
 
 export { ApprovalRequestId } from './types.ts'
 export type { ApprovalOutcome } from './types.ts'
+export { ApprovalRuleStore } from './rules-store.ts'
+export type { ApprovalRuleView } from './rules-store.ts'
+export * from './rules.ts'
 
 /** Every {@link ApprovalOutcome}, for runtime normalization of answerer returns. */
 const OUTCOMES: readonly ApprovalOutcome[] = ['allowed-once', 'rejected', 'cancelled', 'unavailable']
@@ -155,6 +159,13 @@ export class ApprovalService extends Service {
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'approval')
 
+    // The durable rule store rides the approval service: wherever the seam
+    // boots (base bundle) the `approval_rules` domain is open, so the answerer
+    // path can consult remembered rules and the api/approval-rules Remote can
+    // share the same table. storage-domain is a base peer; the store's
+    // `static inject` stalls its init until the domain facility is ready.
+    ctx.plugin(ApprovalRuleStore)
+
     const effective = (agent: Agent): ApprovalPolicy => this.effectivePolicy(agent.session)
 
     // The complete current value travels after retained history, so switching
@@ -222,14 +233,37 @@ export class ApprovalService extends Service {
       )
     }
     const id = ApprovalRequestId(randomUUID())
+    // A remembered rule answers before any human or machine answerer: consult
+    // the durable tool-name store first, and when a rule matches let its
+    // effect settle the outcome so the permission surface silently stops
+    // asking (the guarantee surface is the rule-answered transcript row, not
+    // the approval card). A rule that does not cover this tool delegates to
+    // the composed answerers unchanged. The store only rides the approval
+    // service where storage-domain is present; without it there is no rule to
+    // consult and every request delegates unchanged.
+    const rule = this.ctx.approvalRules?.lookup(req.toolName) ?? undefined
+    const reference = rule === undefined
+      ? undefined
+      : {
+        id: rule.id,
+        name: rule.record.name,
+        ...rule.record.expiresAt !== undefined ? { expiresAt: rule.record.expiresAt } : {},
+      }
     session.append('approval/asked', {
       id,
       toolName: req.toolName,
       ...req.callId !== undefined ? { callId: req.callId } : {},
       ...req.reason !== undefined ? { reason: req.reason } : {},
+      ...reference !== undefined ? { rule: reference } : {},
     })
-    const outcome = await this.decide(req, session)
-    session.append('approval/decided', { id, outcome })
+    const outcome = rule === undefined
+      ? await this.decide(req, session)
+      : rule.record.effect === 'allow' ? 'allowed-once' : 'rejected'
+    session.append('approval/decided', {
+      id,
+      outcome,
+      ...reference !== undefined ? { rule: reference } : {},
+    })
     return outcome
   }
 

@@ -3183,7 +3183,7 @@
       "kind": "event",
       "event": "approval/asked",
       "surface": false,
-      "digest": "3bfeb47b58606f4661904bc723da612782214c463d01e6d61cd6d6193d7374e1",
+      "digest": "70964417b3c0270cdf5a7f833a00cb45b19c1a4925fa19b7d9b49cbdcfee227b",
       "schema": {
         "root": 0,
         "nodes": [
@@ -3197,22 +3197,22 @@
               },
               {
                 "name": "ignorable",
-                "type": 3,
+                "type": 4,
                 "optional": true
               },
               {
                 "name": "seq",
-                "type": 4,
+                "type": 5,
                 "optional": false
               },
               {
                 "name": "time",
-                "type": 4,
+                "type": 5,
                 "optional": false
               },
               {
                 "name": "type",
-                "type": 5,
+                "type": 6,
                 "optional": false
               }
             ],
@@ -3237,6 +3237,11 @@
                 "optional": true
               },
               {
+                "name": "rule",
+                "type": 3,
+                "optional": true
+              },
+              {
                 "name": "toolName",
                 "type": 2,
                 "optional": false
@@ -3247,6 +3252,27 @@
           {
             "kind": "primitive",
             "type": "string"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
           },
           {
             "kind": "literal",
@@ -3268,7 +3294,7 @@
       "kind": "event",
       "event": "approval/decided",
       "surface": false,
-      "digest": "bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3",
+      "digest": "1b2e308c2a64c816e9ad48333917245c948b62a8c5636cede2250f0212e11f21",
       "schema": {
         "root": 0,
         "nodes": [
@@ -3282,22 +3308,22 @@
               },
               {
                 "name": "ignorable",
-                "type": 8,
+                "type": 9,
                 "optional": true
               },
               {
                 "name": "seq",
-                "type": 9,
+                "type": 10,
                 "optional": false
               },
               {
                 "name": "time",
-                "type": 9,
+                "type": 10,
                 "optional": false
               },
               {
                 "name": "type",
-                "type": 10,
+                "type": 11,
                 "optional": false
               }
             ],
@@ -3315,6 +3341,11 @@
                 "name": "outcome",
                 "type": 3,
                 "optional": false
+              },
+              {
+                "name": "rule",
+                "type": 8,
+                "optional": true
               }
             ],
             "indices": []
@@ -3347,6 +3378,27 @@
           {
             "kind": "literal",
             "value": "unavailable"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
           },
           {
             "kind": "literal",
@@ -22126,7 +22178,7 @@
         "packages/interaction/user-approval/src/index.ts#ApprovalPolicy"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/index.ts:67"
+        "packages/interaction/user-approval/src/index.ts:71"
       ]
     },
     {
@@ -30077,6 +30129,130 @@
       "sources": []
     },
     {
+      "digest": "1b2e308c2a64c816e9ad48333917245c948b62a8c5636cede2250f0212e11f21",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 9,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 10,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 10,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 11,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "outcome",
+                "type": 3,
+                "optional": false
+              },
+              {
+                "name": "rule",
+                "type": 8,
+                "optional": true
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "union",
+            "types": [
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          {
+            "kind": "literal",
+            "value": "allowed-once"
+          },
+          {
+            "kind": "literal",
+            "value": "cancelled"
+          },
+          {
+            "kind": "literal",
+            "value": "rejected"
+          },
+          {
+            "kind": "literal",
+            "value": "unavailable"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "approval/decided"
+          }
+        ]
+      },
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "1b5649238876e28811e80f10ec67a00c197ad3babd4ecc61a22b09064b88c597",
       "schema": {
         "root": 0,
@@ -32011,6 +32187,74 @@
       "sources": []
     },
     {
+      "digest": "207756c2dfcdccd686b12fbf204cc311e503c751cde19d046e7a68bc8decc9c2",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "callId",
+                "type": 1,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "reason",
+                "type": 1,
+                "optional": true
+              },
+              {
+                "name": "rule",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "toolName",
+                "type": 1,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 1,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 1,
+                "optional": false
+              }
+            ],
+            "indices": []
+          }
+        ]
+      },
+      "names": [],
+      "sources": [
+        "packages/interaction/user-approval/src/types.ts:62"
+      ]
+    },
+    {
       "digest": "20a57544bbf204dacd1ae6beb2ab29444365c3c869f2afdf489dcdcbc3d9c8c5",
       "schema": {
         "root": 0,
@@ -32102,6 +32346,89 @@
       ],
       "sources": [
         "packages/experimental/agent-team/src/types.ts:115"
+      ]
+    },
+    {
+      "digest": "21aadb897ffafb2efae73d005b5de33f63d07ddf2db348a9557882ae21666ca6",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "id",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "outcome",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "rule",
+                "type": 7,
+                "optional": true
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "union",
+            "types": [
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          {
+            "kind": "literal",
+            "value": "allowed-once"
+          },
+          {
+            "kind": "literal",
+            "value": "cancelled"
+          },
+          {
+            "kind": "literal",
+            "value": "rejected"
+          },
+          {
+            "kind": "literal",
+            "value": "unavailable"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 1,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 1,
+                "optional": false
+              }
+            ],
+            "indices": []
+          }
+        ]
+      },
+      "names": [],
+      "sources": [
+        "packages/interaction/user-approval/src/types.ts:75"
       ]
     },
     {
@@ -36535,89 +36862,6 @@
       "sources": [
         "packages/llm/llm/src/types.ts:441"
       ]
-    },
-    {
-      "digest": "3bfeb47b58606f4661904bc723da612782214c463d01e6d61cd6d6193d7374e1",
-      "schema": {
-        "root": 0,
-        "nodes": [
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "data",
-                "type": 1,
-                "optional": false
-              },
-              {
-                "name": "ignorable",
-                "type": 3,
-                "optional": true
-              },
-              {
-                "name": "seq",
-                "type": 4,
-                "optional": false
-              },
-              {
-                "name": "time",
-                "type": 4,
-                "optional": false
-              },
-              {
-                "name": "type",
-                "type": 5,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "callId",
-                "type": 2,
-                "optional": true
-              },
-              {
-                "name": "id",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "reason",
-                "type": 2,
-                "optional": true
-              },
-              {
-                "name": "toolName",
-                "type": 2,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "primitive",
-            "type": "string"
-          },
-          {
-            "kind": "literal",
-            "value": true
-          },
-          {
-            "kind": "primitive",
-            "type": "number"
-          },
-          {
-            "kind": "literal",
-            "value": "approval/asked"
-          }
-        ]
-      },
-      "names": [],
-      "sources": []
     },
     {
       "digest": "3c2535ca0a2062f172f15344f8040755002b5ac506cf94fc4ebaa822b15feb8c",
@@ -42604,48 +42848,6 @@
       "sources": []
     },
     {
-      "digest": "45f2a07ea94573123b6ae14db787a40062dec3834f36d8be92c523d40ba28448",
-      "schema": {
-        "root": 0,
-        "nodes": [
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "callId",
-                "type": 1,
-                "optional": true
-              },
-              {
-                "name": "id",
-                "type": 1,
-                "optional": false
-              },
-              {
-                "name": "reason",
-                "type": 1,
-                "optional": true
-              },
-              {
-                "name": "toolName",
-                "type": 1,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "primitive",
-            "type": "string"
-          }
-        ]
-      },
-      "names": [],
-      "sources": [
-        "packages/interaction/user-approval/src/types.ts:44"
-      ]
-    },
-    {
       "digest": "477614bca595a9e7adb5a1870be446b9a8684f3ba8950259d6289f2d3b74f028",
       "schema": {
         "root": 0,
@@ -45107,6 +45309,7 @@
         "packages/feedback/message-feedback/src/types.ts#MessageFeedbackVersion",
         "packages/goal/goal/src/types.ts#GoalId",
         "packages/interaction/commands/src/brand.ts#CommandId",
+        "packages/interaction/user-approval/src/rules.ts#ApprovalRuleId",
         "packages/interaction/user-approval/src/types.ts#ApprovalRequestId",
         "packages/llm/llm-retry/src/brand.ts#RetryId",
         "packages/llm/llm/src/brand.ts#MessageId",
@@ -45134,7 +45337,8 @@
         "packages/feedback/message-feedback/src/types.ts:14",
         "packages/goal/goal/src/types.ts:17",
         "packages/interaction/commands/src/brand.ts:31",
-        "packages/interaction/user-approval/src/types.ts:17",
+        "packages/interaction/user-approval/src/rules.ts:17",
+        "packages/interaction/user-approval/src/types.ts:18",
         "packages/llm/llm-retry/src/brand.ts:4",
         "packages/llm/llm/src/brand.ts:16",
         "packages/llm/llm/src/brand.ts:31",
@@ -59656,6 +59860,115 @@
       "sources": []
     },
     {
+      "digest": "70964417b3c0270cdf5a7f833a00cb45b19c1a4925fa19b7d9b49cbdcfee227b",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 4,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 5,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 5,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 6,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "callId",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "reason",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "rule",
+                "type": 3,
+                "optional": true
+              },
+              {
+                "name": "toolName",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 2,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "approval/asked"
+          }
+        ]
+      },
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "70b082fe78991edf13cf66e1b4d06cd2dcff9cacfd76f8cfb996bfb61939e7b2",
       "schema": {
         "root": 0,
@@ -64921,7 +65234,7 @@
         "packages/interaction/user-approval/src/types.ts#ApprovalOutcome"
       ],
       "sources": [
-        "packages/interaction/user-approval/src/types.ts:32"
+        "packages/interaction/user-approval/src/types.ts:33"
       ]
     },
     {
@@ -64969,63 +65282,6 @@
       },
       "names": [],
       "sources": []
-    },
-    {
-      "digest": "93cbbc5a7fd0b1aa1ff1b9a6bb5ec52b073f48e5a5200365c45c0cd54059e1b9",
-      "schema": {
-        "root": 0,
-        "nodes": [
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "id",
-                "type": 1,
-                "optional": false
-              },
-              {
-                "name": "outcome",
-                "type": 2,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "primitive",
-            "type": "string"
-          },
-          {
-            "kind": "union",
-            "types": [
-              3,
-              4,
-              5,
-              6
-            ]
-          },
-          {
-            "kind": "literal",
-            "value": "allowed-once"
-          },
-          {
-            "kind": "literal",
-            "value": "cancelled"
-          },
-          {
-            "kind": "literal",
-            "value": "rejected"
-          },
-          {
-            "kind": "literal",
-            "value": "unavailable"
-          }
-        ]
-      },
-      "names": [],
-      "sources": [
-        "packages/interaction/user-approval/src/types.ts:55"
-      ]
     },
     {
       "digest": "93d38436347f67c9022aacbc4472e283d722bcab8eb73fc376aaf7b6a6b9fb35",
@@ -73968,104 +74224,6 @@
           {
             "kind": "primitive",
             "type": "string"
-          }
-        ]
-      },
-      "names": [],
-      "sources": []
-    },
-    {
-      "digest": "bb1ab3d08f49a9f3b265f844cd78d5c49813062a7b34b54904b426f85d0ff6e3",
-      "schema": {
-        "root": 0,
-        "nodes": [
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "data",
-                "type": 1,
-                "optional": false
-              },
-              {
-                "name": "ignorable",
-                "type": 8,
-                "optional": true
-              },
-              {
-                "name": "seq",
-                "type": 9,
-                "optional": false
-              },
-              {
-                "name": "time",
-                "type": 9,
-                "optional": false
-              },
-              {
-                "name": "type",
-                "type": 10,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "object",
-            "properties": [
-              {
-                "name": "id",
-                "type": 2,
-                "optional": false
-              },
-              {
-                "name": "outcome",
-                "type": 3,
-                "optional": false
-              }
-            ],
-            "indices": []
-          },
-          {
-            "kind": "primitive",
-            "type": "string"
-          },
-          {
-            "kind": "union",
-            "types": [
-              4,
-              5,
-              6,
-              7
-            ]
-          },
-          {
-            "kind": "literal",
-            "value": "allowed-once"
-          },
-          {
-            "kind": "literal",
-            "value": "cancelled"
-          },
-          {
-            "kind": "literal",
-            "value": "rejected"
-          },
-          {
-            "kind": "literal",
-            "value": "unavailable"
-          },
-          {
-            "kind": "literal",
-            "value": true
-          },
-          {
-            "kind": "primitive",
-            "type": "number"
-          },
-          {
-            "kind": "literal",
-            "value": "approval/decided"
           }
         ]
       },
@@ -94970,6 +95128,45 @@
       },
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "fc1c3d30d5376fe1d26a0eee867949fdd803abb29a8d546956b9eb72bf9fdfb1",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "expiresAt",
+                "type": 1,
+                "optional": true
+              },
+              {
+                "name": "id",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "name",
+                "type": 1,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          }
+        ]
+      },
+      "names": [
+        "packages/interaction/user-approval/src/types.ts#ApprovalRuleReference"
+      ],
+      "sources": [
+        "packages/interaction/user-approval/src/types.ts:41"
+      ]
     },
     {
       "digest": "fc2ae6962f9f8801c2b1e414668e1e17cbb7544c4f39381198977a38bd10c093",

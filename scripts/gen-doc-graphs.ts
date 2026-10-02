@@ -657,6 +657,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'One-shot permission decisions dispatched over the `approval/request` waterfall; answerers are listeners (the ACP bridge for its own agents), absence fails closed to `unavailable`.',
   },
   {
+    key: 'approvalRules',
+    pkg: 'user-approval',
+    title: 'Approval-rule store',
+    mode: 'core',
+    implementations: [],
+    consumers: ['user-approval'],
+    note: 'Durable remembered-approval-rule store (`approval_rules` domain table); a tool-name-scoped rule answers the `approval/request` before any answerer, and the rule-management Remote and Settings seat share the opened table.',
+  },
+  {
     key: 'permissionPresets',
     pkg: 'permission-presets',
     title: 'Permission presets',
