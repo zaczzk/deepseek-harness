@@ -122,6 +122,14 @@ async function bench() {
   const directoryPicker = { pick: pickDirectory }
   Object.assign(new TestRemote(ctx), { directoryPicker })
   ctx.provide('remote.directoryPicker', directoryPicker as never)
+  // The Agent-activity roster read the browser inject face drives; the tests
+  // flip its outcome to cover both the forwarded membership and the rethrown
+  // business error arms of `readJobRosters`.
+  const jobHasRows = vi.fn<() => Promise<
+    | { ok: true; value: { withJobRows: readonly SessionId[] } }
+    | { ok: false; error: { message: string } }
+  >>(async () => ({ ok: true, value: { withJobRows: [] } }))
+  ctx.provide('jobs', { hasRows: jobHasRows } as never)
   const locale = new LocaleRuntime(ctx)
   // These specs assert the shipped Chinese copy. There is no jsdom `window`
   // in this lane, so browser-language detection never runs and the locale
@@ -131,7 +139,7 @@ async function bench() {
   return {
     ctx, slots: ctx.get('slots') as SlotRegistry, locale, create, rename,
     retain, using, selectPanel, search, renameSession, binding, fork, pickDirectory, pinSession, unpinSession,
-    workspacesSubscribe, initializeDefault,
+    workspacesSubscribe, initializeDefault, jobHasRows,
     setWorkspaces: (snapshot: WorkspaceSnapshot): void => { workspaceSnapshot = snapshot },
     setSessions: (snapshot: SessionListState): void => { sessionSnapshot = snapshot },
   }
@@ -181,7 +189,7 @@ describe('ui-workspace apply', () => {
 
   it('declares the services it drives', () => {
     expect(inject).toEqual([
-      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'layout',
+      'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'layout', 'jobs',
     ])
   })
 
@@ -543,6 +551,25 @@ describe('ui-workspace apply', () => {
     const picker = faceOf(b.slots.entries('conversation.hero.workspace')[0]!) as WorkspacePickerInjected
     await picker.createWorkspace({ path: '/tmp/project' })
     expect(b.create).toHaveBeenCalledWith({ path: '/tmp/project' })
+  })
+
+  it('routes the Agent-activity roster read to the jobs service and rethrows its business error', async () => {
+    const b = await bench()
+    declare(b.slots, 'sidebar.workspaces')
+    await b.ctx.plugin({ inject: [...inject], apply }).await()
+    const browser = faceOf(b.slots.entries('sidebar.workspaces')[0]!) as WorkspaceBrowserInjected
+
+    // A successful read forwards the requested sessions and returns the subset
+    // that held at least one visible job row.
+    b.jobHasRows.mockResolvedValueOnce({ ok: true, value: { withJobRows: [sid('busy'), sid('queued')] } })
+    await expect(browser.readJobRosters([sid('busy'), sid('idle'), sid('queued')])).resolves.toEqual([sid('busy'), sid('queued')])
+    expect(b.jobHasRows).toHaveBeenCalledWith([sid('busy'), sid('idle'), sid('queued')])
+
+    // A failed read rejects with the service's message rather than resolving
+    // with a partial set: the roster read settles as a unit or not at all.
+    b.jobHasRows.mockResolvedValueOnce({ ok: false, error: { message: 'roster wire down' } })
+    await expect(browser.readJobRosters([sid('busy')])).rejects.toThrow('roster wire down')
+    expect(b.jobHasRows).toHaveBeenLastCalledWith([sid('busy')])
   })
 
   it('declares the browser child slots and reports directory-flow occupancy per surface', async () => {

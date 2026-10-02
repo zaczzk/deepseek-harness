@@ -14,7 +14,7 @@
  * are slot entries with their own behavior, so this component threads no
  * action callbacks and hosts no action surface.
  */
-import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import clsx from 'clsx'
 import {
   Button, IconArchiveCheckOutlineRegular, IconArchiveOutlineRegular,
@@ -22,6 +22,7 @@ import {
   IconFlatListOutlineRegular, IconFolderCloseRegular, IconProjectAddOutlineRegular,
   IconSearchOutlineRegular, IconSlidersTwoOutlineRegular,
   IconWorkspaceTreeOutlineRegular, Menu, Modal, Tooltip,
+  type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type {
   SessionListState, SessionSearchResultItem,
@@ -30,7 +31,7 @@ import type { WorkspaceId, WorkspaceView } from '@deepseek-ai/dsh-api-workspace-
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { PropsRenderSlots } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkspaceBrowserProps } from '../contract/slots.ts'
-import type { ArchivedFilter, GroupNode, SessionNode, SessionOrderBy, SessionRowState } from '../tree.ts'
+import type { ArchivedFilter, GroupNode, SessionNode, SessionOrderBy, SessionRowState, ActivityFilter } from '../tree.ts'
 import {
   deriveFlat, deriveGroups, deriveSearchResults, orderByRecency, owningGroupKey, owningParentFolder,
   pinCurrentBlank, reconcileManualOrder, sessionMemberIds, UNGROUPED_KEY,
@@ -101,48 +102,102 @@ function useNativeDragAcceptance(active: boolean): void {
   }, [active])
 }
 
-/** Grouping, ordering, and archived-filter menu; own open state so it resets with the wide chrome. */
-function ViewOptionsMenu({ groupBy, orderBy, archivedFilter, onGroupPick, onOrderPick, onArchivedFilterPick, t }: {
+/** Grouping, ordering, archived-filter, and Agent-activity menu; owns its open
+ * state so it resets with the wide chrome. */
+function ViewOptionsMenu({ groupBy, orderBy, archivedFilter, activityBy, onGroupPick, onOrderPick, onArchivedFilterPick, onActivityPick, onRetryRoster, onOpenRoster, roster, t }: {
   groupBy: SessionGroupBy
   orderBy: SessionOrderBy
   archivedFilter: ArchivedFilter
+  activityBy: ActivityFilter
   onGroupPick: (mode: SessionGroupBy) => void
   onOrderPick: (mode: SessionOrderBy) => void
   onArchivedFilterPick: (filter: ArchivedFilter) => void
+  onActivityPick: (mode: ActivityFilter) => void
+  onRetryRoster: () => void
+  /** Issue a fresh roster read (each open of the view-options group). */
+  onOpenRoster: () => void
+  roster: RosterState
   t: WorkspaceBrowserProps['t']
 }) {
   const [open, setOpen] = useState(false)
+  // Each open of the view-options group issues a fresh roster read; Retry
+  // re-issues it while the group stays open. A re-open after a previous
+  // success keeps the last roster rendered stale-while-revalidate.
+  useEffect(() => {
+    if (open) onOpenRoster()
+  }, [open, onOpenRoster])
+  const entries: MenuEntry[] = [
+    { type: 'label', id: 'group-by', text: t('groupBy.label') },
+    { id: 'workspace', label: t('groupBy.workspace'), icon: <IconFolderCloseRegular /> },
+    { id: 'workspace-tree', label: t('groupBy.workspaceTree'), icon: <IconWorkspaceTreeOutlineRegular /> },
+    { id: 'flat', label: t('groupBy.flat'), icon: <IconFlatListOutlineRegular /> },
+    { type: 'separator', id: 'order-by-separator' },
+    { type: 'label', id: 'order-by', text: t('orderBy.label') },
+    { id: 'manual', label: t('orderBy.manual'), icon: <IconChevronsUpDownOutlineRegular /> },
+    { id: 'updated', label: t('orderBy.updated'), icon: <IconClockOutlineRegular /> },
+    { type: 'separator', id: 'archived-filter-separator' },
+    { type: 'label', id: 'filter-by', text: t('filterBy.label') },
+    { id: 'show-archived', label: t('viewOptions.showArchived'), icon: <IconArchiveOutlineRegular /> },
+    { id: 'only-archived', label: t('viewOptions.onlyArchived'), icon: <IconArchiveCheckOutlineRegular /> },
+    { type: 'separator', id: 'activity-separator' },
+    { type: 'label', id: 'activity-by', text: t('activityBy.label') },
+    // First-read pending: only this group's three Agent-activity entries stay
+    // disabled against an unseen roster; the shipped Group/Order/Filter-by
+    // entries above (which predicate on sequence/archive data, not the job
+    // roster) keep their always-available behaviour.
+    ...roster.inFlight && !roster.hasRoster
+      ? [{ type: 'label' as const, id: 'activity-pending', text: t('pending.read') }]
+      : [],
+    { id: 'activity-all', label: t('filter.all'), disabled: !roster.hasRoster },
+    { id: 'activity-has-job', label: t('filter.hasJob'), disabled: !roster.hasRoster },
+    { id: 'activity-no-job', label: t('filter.noJob'), disabled: !roster.hasRoster },
+    ...roster.lastFailed
+      ? [
+        { type: 'label' as const, id: 'activity-error', text: t('error.read') },
+        // A **selectable** entry that re-issues the roster read, not a label
+        // row: MenuLabel renders role=presentation with no action, so a
+        // label-typed Retry would be inert. It is excluded from selectedIds
+        // and special-cased in onSelect before the predicate branch, so
+        // picking it never changes the group's selection. Disabled while a
+        // re-read is in flight.
+        { id: 'activity-retry', label: t('retry'), disabled: roster.inFlight },
+      ]
+      : [],
+    // The roster's process-local lifetime, beside the labels, as a label row
+    // (no action — the round-17 owner-style nod to status as colour/icon/label).
+    { type: 'label', id: 'freshness', text: t('freshness.footnote') },
+  ]
   return (
     <Menu
       open={open}
       onClose={() => { setOpen(false) }}
-      items={[
-        { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
-        { id: 'workspace', label: t('groupBy.workspace'), icon: <IconFolderCloseRegular /> },
-        { id: 'workspace-tree', label: t('groupBy.workspaceTree'), icon: <IconWorkspaceTreeOutlineRegular /> },
-        { id: 'flat', label: t('groupBy.flat'), icon: <IconFlatListOutlineRegular /> },
-        { type: 'separator' as const, id: 'order-by-separator' },
-        { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
-        { id: 'manual', label: t('orderBy.manual'), icon: <IconChevronsUpDownOutlineRegular /> },
-        { id: 'updated', label: t('orderBy.updated'), icon: <IconClockOutlineRegular /> },
-        { type: 'separator' as const, id: 'archived-filter-separator' },
-        { type: 'label' as const, id: 'filter-by', text: t('filterBy.label') },
-        { id: 'show-archived', label: t('viewOptions.showArchived'), icon: <IconArchiveOutlineRegular /> },
-        { id: 'only-archived', label: t('viewOptions.onlyArchived'), icon: <IconArchiveCheckOutlineRegular /> },
-      ]}
+      items={entries}
       selectedIds={[
         groupBy,
         orderBy,
         ...archivedFilter === 'show' ? ['show-archived'] : [],
         ...archivedFilter === 'only' ? ['only-archived'] : [],
+        ...activityBy === 'has-job' ? ['activity-has-job'] : [],
+        ...activityBy === 'no-job' ? ['activity-no-job'] : [],
       ]}
       onSelect={(id) => {
+        if (id === 'activity-retry') {
+          // No selection change, no close: re-issue the roster read while the
+          // group stays open, leaving the predicate selection exactly where
+          // it was. Excluded from selectedIds above, so no checkmark lands on
+          // Retry and it can never read as a fourth filter mode.
+          onRetryRoster()
+          return
+        }
         if (id === 'workspace' || id === 'workspace-tree' || id === 'flat') onGroupPick(id)
         else if (id === 'manual' || id === 'updated') onOrderPick(id)
         // The two archived items are mutually exclusive; re-picking the
         // selected one returns to the default hide-archived view.
         else if (id === 'show-archived') onArchivedFilterPick(archivedFilter === 'show' ? 'default' : 'show')
         else if (id === 'only-archived') onArchivedFilterPick(archivedFilter === 'only' ? 'default' : 'only')
+        else if (id === 'activity-all' || id === 'activity-has-job' || id === 'activity-no-job') {
+          onActivityPick(id === 'activity-all' ? 'all' : id === 'activity-has-job' ? 'has-job' : 'no-job')
+        }
         setOpen(false)
       }}
       align="end"
@@ -587,7 +642,13 @@ function SessionTree({
         resetKey={JSON.stringify([animationResetKey, sessionLimits])}
       >
         {groups.length === 0 && (
-          <div className={css.empty} data-row-key="empty">{t('empty.none')}</div>
+          <div className={css.empty} data-row-key="empty">
+            {/* A genuinely-empty Workspace keeps "No sessions yet"; the no-match
+               path is only for a filter that hides existing sessions. */}
+            {rowState.activity !== undefined && list.ids.length > 0
+              ? t('empty.noMatches')
+              : t('empty.none')}
+          </div>
         )}
         {groupRows}
       </AnimatedRows>
@@ -650,7 +711,13 @@ function FlatList({
         resetKey={animationResetKey}
       >
         {rows.length === 0 && (
-          <div className={css.empty} data-row-key="empty">{t('empty.none')}</div>
+          <div className={css.empty} data-row-key="empty">
+            {/* A genuinely-empty Workspace keeps "No sessions yet"; the no-match
+               path is only for a filter that hides existing sessions. */}
+            {rowState.activity !== undefined && list.ids.length > 0
+              ? t('empty.noMatches')
+              : t('empty.none')}
+          </div>
         )}
         {rows.map((node) => {
           const active = drag !== null && drag.pinned === node.pinned
@@ -705,6 +772,23 @@ interface RemoteSearchState {
   status: 'idle' | 'loading' | 'ready' | 'error'
   items: readonly SessionSearchResultItem[]
   hasMore: boolean
+}
+
+/** The Agent-activity roster read's client-side projection used by the menu.
+ * `hasRoster` is true once a successful read exists; it gates the three
+ * Agent-activity entries' selectability and the applied predicate, and stays
+ * true while a re-open's fresh read runs (stale-while-revalidate). `lastFailed`
+ * is true once any read rejected and no successful read has replaced it; its
+ * error line and Retry stay visible while `inFlight` (a retry re-read) runs. */
+interface RosterState {
+  /** A read is currently in flight (first open or a Retry re-issue). */
+  inFlight: boolean
+  /** A successful read has happened; false until the first one settles. */
+  hasRoster: boolean
+  /** The last settled read failed and no success has replaced it. */
+  lastFailed: boolean
+  /** Sessions the last successful read found holding at least one job row. */
+  withJobRows: ReadonlySet<SessionId>
 }
 
 /** Flat search body: local metadata matches plus the current Host result page. */
@@ -823,6 +907,7 @@ export function WorkspaceBrowser({
   insertWorkspaceBefore,
   unarchiveSession,
   createWorkspace,
+  readJobRosters,
   searchSessions,
   searchResultLimit,
   useDirectoryFlow,
@@ -846,6 +931,28 @@ export function WorkspaceBrowser({
   // Persisted view blobs written before the archived filter existed rehydrate
   // without the field; they read as the default hide-archived view.
   const archivedFilter = useStore(s => s.archivedFilter ?? 'default')
+  // Same for the Agent-activity selection (added later than the archive filter).
+  const activityBy = useStore(s => s.activityBy ?? 'all')
+  // The roster read covers the complete saved sequence across every Workspace
+  // (`list.ids`), exactly the scope the zero-match sentence names, and settles
+  // as a unit. It is issued on each view-options open and re-issued by Retry;
+  // a re-open after a success keeps the last result stale-while-revalidate.
+  const [roster, setRoster] = useState<RosterState>({ inFlight: false, hasRoster: false, lastFailed: false, withJobRows: new Set() })
+  const rosterRead = useCallback(() => {
+    const allSessionIds = list.ids
+    setRoster(previous => ({ ...previous, inFlight: true }))
+    readJobRosters(allSessionIds).then((withJobRows) => {
+      setRoster({ inFlight: false, hasRoster: true, lastFailed: false, withJobRows: new Set(withJobRows) })
+    }).catch(() => {
+      setRoster(previous => ({
+        ...previous,
+        inFlight: false,
+        lastFailed: true, // a failed re-open keeps the last success selectable via hasRoster
+      }))
+    })
+  }, [readJobRosters, list.ids])
+  const rosterOpenRead = useCallback(() => { rosterRead() }, [rosterRead])
+  const rosterRetry = useCallback(() => { rosterRead() }, [rosterRead])
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
   // Archived sessions are not openable: the row stays visible under the
@@ -872,8 +979,18 @@ export function WorkspaceBrowser({
     [archivedSessionIds, pinnedSessionIds],
   )
   const rowState = useMemo<SessionRowState>(
-    () => ({ ...orderState, archivedFilter }),
-    [orderState, archivedFilter],
+    () => ({
+      ...orderState,
+      archivedFilter,
+      // The predicate runs only over a successful roster read: `hasRoster`
+      // gates selectability, so a mode other than 'all' is only reachable
+      // after a success, but the guard keeps it honest for a persisted
+      // selection rehydrated before the first read settles.
+      ...roster.hasRoster && activityBy !== 'all'
+        ? { activity: { mode: activityBy, withJobRows: roster.withJobRows } }
+        : {},
+    }),
+    [orderState, archivedFilter, roster.hasRoster, roster.withJobRows, activityBy],
   )
   const flatMemberIds = useMemo(() => sessionMemberIds(list), [list])
   const orderedWorkspaces = useMemo(() => workspaces.map((workspace) => {
@@ -1210,9 +1327,14 @@ export function WorkspaceBrowser({
               groupBy={groupBy}
               orderBy={orderBy}
               archivedFilter={archivedFilter}
+              activityBy={activityBy}
               onGroupPick={actions.setGroupBy}
               onOrderPick={(mode) => { actions.setOrderBy(mode, activeSessionOrders) }}
               onArchivedFilterPick={actions.setArchivedFilter}
+              onActivityPick={actions.setActivityBy}
+              onRetryRoster={rosterRetry}
+              onOpenRoster={rosterOpenRead}
+              roster={roster}
               t={t}
             />
           )}

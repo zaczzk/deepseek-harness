@@ -124,6 +124,7 @@ function mount(overrides: Partial<WorkspaceBrowserProps> = {}) {
     unarchiveSession: vi.fn(async () => {}),
     insertWorkspaceBefore: vi.fn(async () => {}),
     createWorkspace: vi.fn(async () => workspace('created', [])),
+    readJobRosters: vi.fn(async () => []),
     useDirectoryFlow: bindSnapshotSelector({ getSnapshot: () => true, subscribe: () => () => {} }),
     useHostInfo: selector => selector({ home: undefined, isLoopback: true }),
     renderSlot: renderDirectoryFlowOnly,
@@ -423,6 +424,42 @@ describe('WorkspaceBrowser', () => {
     }
   })
 
+  it('filters by Agent activity: a roster-backed has-job pick hides idle sessions and no-job shows only them', async () => {
+    const readJobRosters = vi.fn(async () => [sid('busy')])
+    const b = mount({
+      useSessions: hook(sessionState([summary('busy', 3), summary('idle', 2)])),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['busy', 'idle'])])),
+      readJobRosters,
+    })
+    const visible = () => screen.getAllByRole('treeitem')
+      .filter(row => row.getAttribute('aria-expanded') === null)
+      .map(row => row.textContent)
+    // Expand the group so its session rows are in the DOM (grouped-tree default).
+    fireEvent.click(screen.getByText('alpha'))
+    expect(visible()).toEqual(expect.arrayContaining([expect.stringContaining('busy'), expect.stringContaining('idle')]))
+
+    // Opening the view-options group issues a fresh roster read for the whole
+    // saved sequence; the Activity entries stay disabled until it settles.
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    expect(readJobRosters).toHaveBeenCalledWith(['busy', 'idle'])
+    // The Activity entries enable once the roster read settles (jest-dom's
+    // toBeEnabled is absent from this suite; assert the native disabled state).
+    await waitFor(() => {
+      const item = screen.getByRole('menuitem', { name: '有任务行' }) as HTMLButtonElement
+      expect(item.disabled).toBe(false)
+    })
+
+    // has-job keeps exactly the sessions the roster found holding a row.
+    fireEvent.click(screen.getByRole('menuitem', { name: '有任务行' }))
+    expect(visible()).toEqual([expect.stringContaining('busy')])
+
+    // no-job is the complement, and the applied predicate persists with the pick.
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '无任务行' }))
+    expect(visible()).toEqual([expect.stringContaining('idle')])
+    expect(b.store.getSnapshot().activityBy).toBe('no-job')
+  })
+
   it('renders the grouped tree by default and switches to the flat list via Group by', () => {
     const sessions = sessionState([summary('alpha-s', 2), summary('beta-s', 1)])
     const b = mount({
@@ -435,10 +472,12 @@ describe('WorkspaceBrowser', () => {
     expect(screen.queryByText('alpha-s')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    expect(screen.getByRole('button', { name: '视图选项' }))
     expect(screen.getByText('分组方式')).toBeTruthy() // the menu heading label
-    expect(screen.getAllByRole('separator')).toHaveLength(2)
+    expect(screen.getAllByRole('separator')).toHaveLength(3)
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       '按工作区', '按工作区树', '单列表', '手动排序', '最近更新', '显示已归档', '仅显示已归档',
+      '所有会话', '有任务行', '无任务行',
     ])
     expect(screen.getByRole('menuitem', { name: '按工作区' }).querySelector('svg')).toBeTruthy()
     expect(screen.getByRole('menuitem', { name: '手动排序' }).querySelector('svg')).toBeTruthy()

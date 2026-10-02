@@ -8,6 +8,7 @@ import type { ScheduleId, ScheduleRecord } from '@deepseek-ai/dsh-schedule/clien
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { SessionProjectionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import {
+  type ActivityMembership,
   type ArchivedFilter,
   deriveFlat, deriveGroups, deriveSearchResults, orderByRecency, owningGroupKey, owningParentFolder,
   pinCurrentBlank, reconcileManualOrder, sessionMemberIds, visibleSessionIds, workspaceLabel, UNGROUPED_KEY,
@@ -597,6 +598,48 @@ describe('deriveFlat', () => {
   })
 })
 
+describe('deriveFlat Agent-activity filtering', () => {
+  const activity = (mode: 'all' | 'has-job' | 'no-job', withJobRows: readonly string[] = []): ActivityMembership => ({
+    mode, withJobRows: new Set(withJobRows.map(sid)),
+  })
+  const sessions = list(summary('busy', 3), summary('idle', 2))
+
+  it('keeps every session visible while the mode is all or the membership is absent', () => {
+    expect(visibleSessionIds(sessions, noArchive, 'default')).toEqual([sid('busy'), sid('idle')])
+    expect(visibleSessionIds(sessions, noArchive, 'default', activity('all', []))).toEqual([sid('busy'), sid('idle')])
+    expect(visibleSessionIds(sessions, noArchive, 'default', activity('all', ['busy']))).toEqual([sid('busy'), sid('idle')])
+  })
+
+  it('has-job keeps only sessions the roster found with a visible job row', () => {
+    expect(visibleSessionIds(sessions, noArchive, 'default', activity('has-job', ['busy']))).toEqual([sid('busy')])
+    const flat = deriveFlat(sessions, sessions.ids, {
+      pinnedSessionIds: [], archivedSessionIds: [], archivedFilter: 'default',
+      activity: activity('has-job', ['busy']),
+    }, noAttention)
+    expect(flat.map(row => row.id)).toEqual([sid('busy')])
+  })
+
+  it('no-job keeps only sessions the roster found without a visible job row', () => {
+    expect(visibleSessionIds(sessions, noArchive, 'default', activity('no-job', ['busy']))).toEqual([sid('idle')])
+    const flat = deriveFlat(sessions, sessions.ids, {
+      pinnedSessionIds: [], archivedSessionIds: [], archivedFilter: 'default',
+      activity: activity('no-job', ['busy']),
+    }, noAttention)
+    expect(flat.map(row => row.id)).toEqual([sid('idle')])
+  })
+
+  it('applies the Agent-activity predicate on top of the archived filter', () => {
+    const grouped = deriveGroups(
+      withMain(list(summary('kept-busy', 3), summary('kept-idle', 2), summary('gone', 1)), sid('kept-busy')),
+      [workspace('alpha', ['kept-busy', 'kept-idle', 'gone'])],
+      { pinnedSessionIds: [], archivedSessionIds: [sid('gone')], archivedFilter: 'default', activity: activity('has-job', ['kept-busy']) },
+      noAttention,
+      view(['alpha']),
+    )
+    expect(grouped[0]!.sessions.map(row => row.id)).toEqual([sid('kept-busy')])
+  })
+})
+
 describe('deriveSearchResults archive filtering', () => {
   it('archived sessions never match — not by title and not via a backend content hit', () => {
     const hit = summary('hit', 2)
@@ -786,6 +829,17 @@ describe('createWorkspaceViewStore', () => {
       groupExpansion: { alpha: true },
       sessionOrderByAccount: { alpha: ['one', 'two'] },
     })
+  })
+
+  it('records and cycles the Agent-activity selection', () => {
+    const store = createWorkspaceViewStore().create()
+    expect(store.getSnapshot().activityBy).toBe('all')
+    store.actions.setActivityBy('has-job')
+    expect(store.getSnapshot().activityBy).toBe('has-job')
+    store.actions.setActivityBy('no-job')
+    expect(store.getSnapshot().activityBy).toBe('no-job')
+    store.actions.setActivityBy('all')
+    expect(store.getSnapshot().activityBy).toBe('all')
   })
 
   it('retains positions when reselecting Manual and snapshots the supplied order on mode switches', () => {

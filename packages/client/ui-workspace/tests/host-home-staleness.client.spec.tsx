@@ -29,6 +29,7 @@ function SidebarFrame({ renderSlot }: FrameProps) {
 async function bench() {
   const runtime = await SlotTestRuntime.create()
   runtime.ctx.provide('layout', { selectPanel: vi.fn() })
+  runtime.ctx.provide('jobs', { hasRows: vi.fn(async () => ({ ok: true, value: { withJobRows: [] } })) } as never)
   runtime.releaseWorkspaceSource()
   const directoryPicker = {}
   const { remote } = runtime
