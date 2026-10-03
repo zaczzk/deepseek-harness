@@ -20,19 +20,28 @@ export interface RegisterInjected {
    * @param observedVersion - metadata version observed at read start.
    */
   readonly loadRegister: (observedVersion: string) => void
+  /**
+   * Re-issue the Session's one `session.projections` read after a failed
+   * read, so the failed-read strip's Retry brings the milestone figures
+   * back.
+   */
+  readonly retryCost: () => void
 }
 
 /**
- * Bind the tab's face to one document reader.
+ * Bind the tab's face to one document reader and the projection-read retry.
  * @param read - reads one project document by workspace path.
+ * @param retryCost - re-issues the Session's one projections read.
  * @returns the Slot `inject` factory body: bound actions in, face out.
  */
 export function registerFace(
   read: ReadProjectDoc,
+  retryCost: () => void,
 ): (actions: BoundActions<RegisterStore>) => RegisterInjected {
   return (actions): RegisterInjected => {
     let queue: Promise<void> = Promise.resolve()
     return {
+      retryCost,
       loadRegister: (observedVersion) => {
         actions.loading(observedVersion)
         queue = queue.then(async () => {

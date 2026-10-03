@@ -87,3 +87,12 @@
   cursor: pointer;
 }
 .retry:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.pending, .unavailable {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
+.costError { color: var(--dsw-alias-state-error-primary); font-size: 12px; }
+.cost { display: flex; flex-direction: column; gap: 2px; }
+.figure { color: var(--dsw-alias-label-primary); font-variant-numeric: tabular-nums; }
+.estimate { color: var(--dsw-alias-label-tertiary); font-size: 11px; }
+.failedStrip td { display: flex; align-items: center; gap: 8px; }

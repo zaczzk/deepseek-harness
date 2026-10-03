@@ -3618,6 +3618,9 @@ importers:
       '@deepseek-ai/dsh-api-remotes':
         specifier: workspace:^
         version: link:../../api/remotes
+      '@deepseek-ai/dsh-api-session-controller':
+        specifier: workspace:^
+        version: link:../../api/session-controller
       '@deepseek-ai/dsh-api-workspace-files':
         specifier: workspace:^
         version: link:../../api/workspace-files
@@ -3645,6 +3648,9 @@ importers:
       '@deepseek-ai/dsh-client-ui-slots':
         specifier: workspace:^
         version: link:../ui-slots
+      '@deepseek-ai/dsh-decision-cost':
+        specifier: workspace:^
+        version: link:../../session/decision-cost
       '@deepseek-ai/dsh-session':
         specifier: workspace:^
         version: link:../../core/session

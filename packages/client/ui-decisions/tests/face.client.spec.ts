@@ -7,7 +7,11 @@ import { createRegisterStore } from '../src/client/store.ts'
 function bench() {
   const store = createRegisterStore()
   const instance = store.create('session-1')
-  return { instance, state: () => instance.getSnapshot(), actions: instance.actions }
+  const retryCost = vi.fn()
+  return {
+    instance, retryCost,
+    state: () => instance.getSnapshot(), actions: instance.actions,
+  }
 }
 
 function deferred<T>() {
@@ -22,7 +26,7 @@ describe('registerFace', () => {
   it('records a successful read with its text and version', async () => {
     const b = bench()
     const read = vi.fn(async (): Promise<ProjectTextResult> => ({ ok: true, value: { text: '| D1 |', version: 'v1' } }))
-    const face = registerFace(read)(b.actions)
+    const face = registerFace(read, b.retryCost)(b.actions)
 
     face.loadRegister('v1')
     expect(b.state().doc.status).toBe('loading')
@@ -36,7 +40,7 @@ describe('registerFace', () => {
   it('records the failure code of a failed read', async () => {
     const b = bench()
     const read = vi.fn(async (): Promise<ProjectTextResult> => ({ ok: false, error: { code: 'workspace-file/not-found' } }))
-    const face = registerFace(read)(b.actions)
+    const face = registerFace(read, b.retryCost)(b.actions)
 
     face.loadRegister('v3')
 
@@ -48,7 +52,7 @@ describe('registerFace', () => {
 
   it('reports a rejected read as a gateway failure', async () => {
     const b = bench()
-    const face = registerFace(async () => { throw new Error('transport') })(b.actions)
+    const face = registerFace(async () => { throw new Error('transport') }, b.retryCost)(b.actions)
 
     face.loadRegister('v1')
 
@@ -63,7 +67,7 @@ describe('registerFace', () => {
     const read = vi.fn<(path: string) => Promise<ProjectTextResult>>()
       .mockImplementationOnce(() => first.promise)
       .mockImplementationOnce(() => second.promise)
-    const face = registerFace(read)(b.actions)
+    const face = registerFace(read, b.retryCost)(b.actions)
 
     face.loadRegister('v1')
     face.loadRegister('v2')
@@ -75,6 +79,14 @@ describe('registerFace', () => {
 
     await vi.waitFor(() => { expect(b.state().doc.version).toBe('v2') })
     await flush()
-    expect(b.state().doc).toMatchObject({ status: 'ready', text: 'newer', version: 'v2' })
+    await vi.waitFor(() => { expect(b.state().doc).toMatchObject({ status: 'ready', text: 'newer', version: 'v2' }) })
+  })
+
+  it('re-issues the Session projections read through retryCost', () => {
+    const b = bench()
+    const face = registerFace(async () => ({ ok: true, value: { text: '', version: 'v1' } }), b.retryCost)(b.actions)
+
+    face.retryCost()
+    expect(b.retryCost).toHaveBeenCalledTimes(1)
   })
 })

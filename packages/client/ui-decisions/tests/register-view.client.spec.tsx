@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ResourceSnapshot, UseResource } from '@deepseek-ai/dsh-client-resources/client'
 import { makeTranslate } from '@deepseek-ai/dsh-client-test-runtime'
+import type { MilestoneCostProjection } from '@deepseek-ai/dsh-decision-cost/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { WorkspaceFileStat } from '@deepseek-ai/dsh-api-workspace-files/types'
 import {
@@ -41,6 +42,8 @@ interface BenchOptions {
   meta?: Partial<ResourceSnapshot<WorkspaceFileStat>>
   seed?: (instance: StoreInstance) => void
   face?: Partial<RegisterInjected>
+  projection?: MilestoneCostProjection
+  readState?: 'idle' | 'loading' | 'ready' | 'error' | undefined
 }
 
 function benchState(options: BenchOptions) {
@@ -58,8 +61,14 @@ function props(b: ReturnType<typeof benchState>, options: BenchOptions): Decisio
     sessionId: SESSION,
     useResource: resource(options.meta ?? {}),
     useStore: <S,>(select: (state: RegisterState) => S): S => select(b.instance.getSnapshot()),
+    useProjection: () => options.projection,
+    useSessions: (select: unknown) =>
+      (select as (list: object) => unknown)(
+        { projectionsBySession: { [SESSION]: { state: options.readState } } } as object,
+      ),
     actions: b.instance.actions,
     loadRegister: b.loadRegister,
+    retryCost: () => {},
     ...options.face,
     t: makeTranslate(en),
     inspectCall: undefined,
@@ -244,5 +253,44 @@ describe('DecisionsView', () => {
     b.rerenderWith({ meta: { value: { absolutePath: '/ws/DECISIONS.md', version: 'v2' } } })
 
     expect(b.loadRegister).toHaveBeenCalledWith('v2')
+  })
+
+  it('shows a resolved milestone figure with its derived-estimate label', () => {
+    const b = bench({ seed: seeded, projection: { M1: 120 } as MilestoneCostProjection })
+
+    const cell = b.container.querySelector('[data-decisions-cost="120"]')!
+    expect(cell.textContent).toContain('120')
+    expect(cell.textContent).toContain(en['cost.estimate'])
+  })
+
+  it('labels a milestone cost pending while its projection has not arrived', () => {
+    const b = bench({ seed: seeded })
+
+    expect(b.container.querySelector('[data-decisions-cost="pending"]')).toBeTruthy()
+  })
+
+  it('labels a milestone cost unavailable when its fold value is absent', () => {
+    const b = bench({ seed: seeded, projection: {} as MilestoneCostProjection })
+
+    expect(b.container.querySelector('[data-decisions-cost="unavailable"]')).toBeTruthy()
+  })
+
+  it('labels a milestone cost unavailable when its fold value is null', () => {
+    const b = bench({ seed: seeded, projection: { M1: null } as MilestoneCostProjection })
+
+    expect(b.container.querySelector('[data-decisions-cost="unavailable"]')).toBeTruthy()
+  })
+
+  it('reports a failed cost read and retries it once through the face', () => {
+    const retryCost = vi.fn()
+    const b = bench({ seed: seeded, readState: 'error', face: { retryCost } })
+
+    expect(b.container.querySelector('[data-decisions-cost="error"]')).toBeTruthy()
+    // A present milestone figure is not claimed while the read is failed.
+    expect(b.container.querySelector('[data-decisions-cost="unavailable"]')).toBeNull()
+    const strip = b.container.querySelector('[data-decisions-cost-failed]')!
+    fireEvent.click(strip.querySelector('[data-decisions-cost-retry]') as HTMLButtonElement)
+
+    expect(retryCost).toHaveBeenCalledTimes(1)
   })
 })

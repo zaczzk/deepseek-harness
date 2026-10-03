@@ -7,6 +7,11 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+// Type-only: pulls the Session controller client merge for ctx.sessions
+// (refreshProjections) and the uSES list snapshot's projectionsBySession.
+// (ctx.sessions also collides with core/session's SessionStore host merge,
+// so the Retry binding reads the strict ISessions service via ctx.get.)
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 // Type-only: pulls the locale plugin's Context merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-resources/client'
@@ -34,8 +39,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
-/** Required services: the slot registry, copy, and the workspace Files Remote. */
-export const inject = ['slots', 'locale', 'remote', 'remote.workspaceFiles']
+/** Required services: the slot registry, copy, the workspace Files Remote, and the Session controller for projection-read retry. */
+export const inject = ['slots', 'locale', 'remote', 'remote.workspaceFiles', 'sessions']
 
 /**
  * Client plugin body: register the `decisions` dictionaries and the Decisions
@@ -56,7 +61,12 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     label: () => t('view.decisions'),
     store,
-    inject: (sessionId: SessionId, actions): RegisterInjected =>
-      registerFace(path => readWorkspaceText(ctx.remote, sessionId, path))(actions),
+    inject: (sessionId: SessionId, actions): RegisterInjected => {
+      const sessions = ctx.get('sessions') as ISessions
+      return registerFace(
+        path => readWorkspaceText(ctx.remote, sessionId, path),
+        () => { void sessions.refreshProjections(sessionId) },
+      )(actions)
+    },
   }, DecisionsView))
 }

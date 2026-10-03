@@ -3,13 +3,19 @@
  * newest first, or the one line saying why it is not showing. Metadata
  * arrives through the standard `useResource` hook; register text is the
  * store's, so a body coming back to its tab re-renders nothing until the
- * document changes.
+ * document changes. Each milestone row's Cost cell reads this Session's own
+ * `milestoneCost` projection through the standard `useProjection` seat, so a
+ * figure always pairs with the register row already on screen and never
+ * invents a cost it cannot support.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import clsx from 'clsx'
 import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import {
+  type MilestoneCostProjection, type MilestoneRowId,
+} from '@deepseek-ai/dsh-decision-cost/client'
 // Type-only: the `file` ResourceProtocolMap merge behind `useResource<'file'>`.
 import type {} from '@deepseek-ai/dsh-api-workspace-files/client'
 import type {} from '@deepseek-ai/dsh-client-resources/client'
@@ -44,15 +50,76 @@ const COPY_LABEL: Record<CopyState, DecisionsKey> = {
 }
 
 /**
+ * A register row's Cost cell, one of the item-9 five renders: pre-resolution
+ * shows the pending marker and no figure; a milestone row this Session mints
+ * shows the figure (or the unavailable label where the fold value is `null`);
+ * a decision row shows the placeholder `'—'`; a cross-Session milestone row
+ * shows the unavailable label; a failed read shows `cost.error.read`.
+ * @param rowId - the register row's `M<n>` or `D<n>` identity.
+ * @param kind - the row's decision-or-milestone class.
+ * @param projection - this Session's `milestoneCost` map when resolved.
+ * @param readState - the Session's projection-read lifecycle.
+ * @param t - the bound `decisions` translator.
+ * @returns the cell node.
+ */
+export function costCell(
+  rowId: string,
+  kind: 'decision' | 'milestone',
+  projection: MilestoneCostProjection | undefined,
+  readState: 'idle' | 'loading' | 'ready' | 'error' | undefined,
+  t: (key: DecisionsKey) => string,
+): ReactNode {
+  // A decision row (`D<n>`) appears in no session event, so it has no join
+  // key and no interval; it keeps the placeholder from the first render.
+  if (kind === 'decision') {
+    return <span className={css.none} data-decisions-cost="decision">{t('diagram.none')}</span>
+  }
+  // A failed projection read: this Session's figures all come from the one
+  // read, so the cell reads the labelled failure and the single failed-read
+  // strip carries the one Retry (rendered once, below the rows).
+  if (readState === 'error') {
+    return <span className={css.costError} data-decisions-cost="error">{t('cost.error.read')}</span>
+  }
+  // Pre-resolution: the projection has not yet arrived, so no figure exists
+  // to show; the shipped `loading` marker stands in on figure-bearing rows.
+  if (projection === undefined) {
+    return <span className={css.pending} data-decisions-cost="pending">{t('loading')}</span>
+  }
+  const figure = projection[rowId as MilestoneRowId]
+  // A present `null` (the milestone's interval data is missing) or an absent
+  // key (a sibling Session's milestone row — this map mints only this
+  // Session's rows) both render the labelled unavailable figure, never `'—'`
+  // and never a zero that would read as a cost claim.
+  if (figure === undefined || figure === null) {
+    return <span className={css.unavailable} data-decisions-cost="unavailable">{t('cost.unavailable')}</span>
+  }
+  return (
+    <span className={css.cost} data-decisions-cost={figure}>
+      <span className={css.figure}>{figure}</span>
+      <span className={css.estimate}>{t('cost.estimate')}</span>
+    </span>
+  )
+}
+
+/**
  * Render the decision register table with its milestone diagram status.
  * @param props - composed slot props.
  * @returns the register table, or one status line.
  */
 export function DecisionsView({
-  sessionId, useResource, useStore, loadRegister, t,
+  sessionId, useResource, useStore, useProjection, useSessions,
+  loadRegister, retryCost, t,
 }: DecisionsViewProps): ReactNode {
   const meta = useResource<'file'>(sessionFileAddress(sessionId, REGISTER_FILE))
   const doc = useStore(state => state.doc)
+  // This Session's milestone→token figure map. `undefined` uniformly means
+  // "capability absent" — before the baseline carries the key (pre-resolution)
+  // or after a rejected read, which the lifecycle below surfaces.
+  const projection = useProjection('milestoneCost')
+  // The projection read lifecycle distinguishes a rejected read from a value
+  // that has not arrived; the store keeps the last value across a re-read, so
+  // the read's own state is the only honest failed-read signal.
+  const readState = useSessions(list => list.projectionsBySession[sessionId]?.state)
   const [copy, setCopy] = useState<CopyState>('idle')
 
   // One read per observed metadata version: a failed read keeps its
@@ -119,6 +186,7 @@ export function DecisionsView({
               <th className={css.head}>{t('column.title')}</th>
               <th className={css.head}>{t('column.status')}</th>
               <th className={css.head}>{t('column.diagram')}</th>
+              <th className={css.head}>{t('column.cost')}</th>
             </tr>
           </thead>
           <tbody>
@@ -135,8 +203,27 @@ export function DecisionsView({
                 <td className={css.cell}>{row.title}</td>
                 <td className={css.cell}><span className={css.chip}>{t(`status.${row.status}`)}</span></td>
                 <td className={css.cell}>{diagramCell(row.diagram)}</td>
+                <td className={css.cell}>{costCell(row.id, row.kind, projection, readState, t)}</td>
               </tr>
             ))}
+            {/* The projection read fails as a unit for every one of this
+                Session's figure cells, so the one failed-read strip (with the
+                one Retry) stands in place of the figure column. */}
+            {readState === 'error' && retryCost !== undefined && (
+              <tr className={css.failedStrip} data-decisions-cost-failed>
+                <td className={css.cell} colSpan={7}>
+                  <span className={css.costError}>{t('cost.error.read')}</span>
+                  <button
+                    type="button"
+                    className={css.retry}
+                    data-decisions-cost-retry
+                    onClick={retryCost}
+                  >
+                    {t('retry')}
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       )
