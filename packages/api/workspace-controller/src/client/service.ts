@@ -87,6 +87,12 @@ export interface IWorkspaces {
    */
   archiveSession(sessionId: SessionId, options?: { readonly stopActivity?: boolean }): Promise<void>
   /**
+   * Archive every archivable Session across every Workspace this Host serves.
+   * @param options - `stopActivity` asks the Host to stop each Session's running work instead of refusing.
+   * @returns the archived Session identities, in dispatch order; a partial archive reports what was archived.
+   */
+  fleetHalt(options?: { readonly stopActivity?: boolean }): Promise<readonly SessionId[]>
+  /**
    * Unarchive a Session from the archived Session list.
    * @param sessionId - Session to unarchive.
    */
@@ -159,6 +165,12 @@ export class WorkspaceController extends Service implements IWorkspaces {
   async archiveSession(sessionId: SessionId, options: { readonly stopActivity?: boolean } = {}): Promise<void> {
     const result = await this.model.archiveSession(sessionId, options)
     if (!result.ok) throw new WorkspaceArchiveError(result.error)
+  }
+
+  async fleetHalt(options: { readonly stopActivity?: boolean } = {}): Promise<readonly SessionId[]> {
+    const result = await this.model.fleetHalt(options)
+    if (!result.ok) throw new WorkspaceArchiveError(result.error)
+    return result.value.archivedSessionIds
   }
 
   async unarchiveSession(sessionId: SessionId): Promise<void> {

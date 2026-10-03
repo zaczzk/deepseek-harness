@@ -9,6 +9,8 @@ import type {
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
+  WorkspaceFleetHaltRequest,
+  WorkspaceFleetHaltValue,
   WorkspaceFollowFrame,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
@@ -90,6 +92,10 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
     request: WorkspaceArchiveSessionRequest,
   ) => Promise<RemoteResult<WorkspaceArchiveValue>> = request =>
     Promise.resolve(remoteOk({ archivedSessionIds: [request.sessionId] }))
+  onFleetHalt: (
+    _request: WorkspaceFleetHaltRequest,
+  ) => Promise<RemoteResult<WorkspaceFleetHaltValue>> = () =>
+    Promise.resolve(remoteOk({ archivedSessionIds: [] }))
   onUnarchiveSession: (
     request: WorkspaceUnarchiveSessionRequest,
   ) => Promise<RemoteResult<WorkspaceArchiveValue>> = request =>
@@ -131,6 +137,11 @@ class FakeWorkspaceRemote implements WorkspaceRemote {
   archiveSession(request: WorkspaceArchiveSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
     this.record('archiveSession', request)
     return this.onArchiveSession(request)
+  }
+
+  fleetHalt(request: WorkspaceFleetHaltRequest): Promise<RemoteResult<WorkspaceFleetHaltValue>> {
+    this.record('fleetHalt', request)
+    return this.onFleetHalt(request)
   }
 
   unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<RemoteResult<WorkspaceArchiveValue>> {
@@ -437,6 +448,59 @@ describe('ClientWorkspaceModel', () => {
     gate.resolve(remoteOk({ archivedSessionIds: [] }))
     await expect(pending).resolves.toMatchObject({ ok: true })
     expect(model.getSnapshot().archivedSessionIds).toEqual(['second'])
+  })
+
+  it('halts all, installs the returned archive set, forwards stopActivity, and leaves failure unchanged', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    baseline(model, [], [sid('kept')])
+
+    remote.onFleetHalt = () => Promise.resolve(workspaceError(
+      new RemoteError('session/not-found', 'missing', { sessionId: sid('missing') }),
+    ))
+    await expect(model.fleetHalt()).resolves.toMatchObject({ ok: false })
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['kept'])
+
+    remote.onFleetHalt = () => Promise.resolve(remoteOk({ archivedSessionIds: [sid('kept'), sid('fresh')] }))
+    await expect(model.fleetHalt({ stopActivity: true })).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['kept', 'fresh'])
+    expect(remote.calls).toContainEqual({ method: 'fleetHalt', request: { stopActivity: true } })
+
+    remote.onFleetHalt = () => Promise.resolve(remoteOk({ archivedSessionIds: [sid('fresh')] }))
+    await expect(model.fleetHalt()).resolves.toMatchObject({ ok: true })
+    expect(remote.calls).toContainEqual({ method: 'fleetHalt', request: {} })
+  })
+
+  it('keeps the latest halt-all reply when overlapping requests settle out of order', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    const firstGate = deferred<RemoteResult<WorkspaceFleetHaltValue>>()
+    const secondGate = deferred<RemoteResult<WorkspaceFleetHaltValue>>()
+    let request = 0
+    remote.onFleetHalt = () => request++ === 0 ? firstGate.promise : secondGate.promise
+
+    const first = model.fleetHalt()
+    const second = model.fleetHalt()
+    secondGate.resolve(remoteOk({ archivedSessionIds: [sid('first'), sid('second')] }))
+    await expect(second).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['first', 'second'])
+    firstGate.resolve(remoteOk({ archivedSessionIds: [sid('first')] }))
+    await expect(first).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['first', 'second'])
+  })
+
+  it('keeps a pushed archive set when a halt-all reply lands later', async () => {
+    const remote = new FakeWorkspaceRemote()
+    const model = modelFor(remote)
+    baseline(model, [], [sid('first')])
+    const gate = deferred<RemoteResult<WorkspaceFleetHaltValue>>()
+    remote.onFleetHalt = () => gate.promise
+
+    const pending = model.fleetHalt()
+    model.replaceArchived([sid('first'), sid('second')])
+    gate.resolve(remoteOk({ archivedSessionIds: [] }))
+    await expect(pending).resolves.toMatchObject({ ok: true })
+    expect(model.getSnapshot().archivedSessionIds).toEqual(['first', 'second'])
   })
 
   it('applies pin mutation echoes and leaves failed results unchanged', async () => {

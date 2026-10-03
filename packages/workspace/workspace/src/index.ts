@@ -108,6 +108,21 @@ export interface ArchiveSessionOptions {
    * a provider failure is logged without undoing the archive.
    */
   readonly stopActivity?: boolean
+  /**
+   * Fleet-halt marker set only by the controller's `fleetHalt`: when present
+   * the archive is one iteration of a fleet halt rather than the ordinary row
+   * path, carrying the fleet-wide size and the branded id of the Workspace
+   * this dispatch iteration targeted. A multi-Workspace halt has no single
+   * targeted id, so each returned Session names one Workspace plus the fleet
+   * count. The row path passes no marker. The archive seam's halt-event
+   * emission (`workspace/halt`) reads `{ workspaceId, count }` from this
+   * marker — it sets the archive's discriminator; the event itself lands with
+   * the item-3 halt-event surface.
+   */
+  readonly fleet?: {
+    readonly workspaceId: WorkspaceId
+    readonly count: number
+  }
 }
 
 declare module '@deepseek-ai/cordis' {

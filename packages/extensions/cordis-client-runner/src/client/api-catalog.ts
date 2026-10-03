@@ -479,6 +479,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['{WorkspaceArchiveError} when the Host refuses; without `stopActivity` a Session with running work fails as `workspace/session-active`, its details naming what runs.'],
       },
       {
+        signature: 'fleetHalt(options?: { readonly stopActivity?: boolean }): Promise<readonly SessionId[]>',
+        description: 'Archive every archivable Session across every Workspace this Host serves.',
+        parameters: [{ name: 'options', description: '`stopActivity` asks the Host to stop each Session\'s running work instead of refusing.' }],
+        returns: 'the archived Session identities, in dispatch order; a partial archive reports what was archived.',
+      },
+      {
         signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
         description: 'Unarchive a Session from the archived Session list.',
         parameters: [{ name: 'sessionId', description: 'Session to unarchive.' }],

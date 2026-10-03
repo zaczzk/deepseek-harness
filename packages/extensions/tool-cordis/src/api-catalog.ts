@@ -3567,6 +3567,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the complete resulting archive set.',
       },
       {
+        signature: '@Remote(\'fleetHalt\') fleetHalt(request: WorkspaceFleetHaltRequest): Promise<WorkspaceFleetHaltValue>',
+        description: 'Halt-all: archive every archivable Session across every Workspace this Host serves. The dispatch loops the per-Workspace Session membership the registry already owns, issues one marker-carrying `archiveSession` per Session, and returns the archived Session identities in dispatch order — a partial archive reports its resolution, never the count offered.',
+        parameters: [{ name: 'request', description: 'whether to stop each Session\'s running work.' }],
+        returns: 'the archived Session identities.',
+      },
+      {
         signature: '@Remote(\'pinSession\') pinSession(request: WorkspacePinSessionRequest): Promise<WorkspacePinValue>',
         description: 'Surface one known unarchived Session ahead of unpinned Sessions.',
         parameters: [{ name: 'request', description: 'Session identity to pin.' }],
@@ -4471,7 +4477,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ArchiveSessionOptions',
-    declaration: 'export interface ArchiveSessionOptions {\n    readonly stopActivity?: boolean;\n}',
+    declaration: 'export interface ArchiveSessionOptions {\n    readonly stopActivity?: boolean;\n    readonly fleet?: {\n        readonly workspaceId: WorkspaceId;\n        readonly count: number;\n    };\n}',
   },
   {
     name: 'AskUserQuestionAnswer',
@@ -7924,6 +7930,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceFileWatchFrame',
     declaration: 'export type WorkspaceFileWatchFrame = {\n    readonly kind: \'ready\';\n} | {\n    readonly kind: \'change\';\n    readonly change: WorkspaceFileChange;\n};',
+  },
+  {
+    name: 'WorkspaceFleetHaltRequest',
+    declaration: 'export interface WorkspaceFleetHaltRequest {\n    readonly stopActivity?: boolean;\n}',
+  },
+  {
+    name: 'WorkspaceFleetHaltValue',
+    declaration: 'export interface WorkspaceFleetHaltValue {\n    readonly archivedSessionIds: readonly SessionId[];\n}',
   },
   {
     name: 'WorkspaceFollowFrame',

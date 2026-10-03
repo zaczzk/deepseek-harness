@@ -157,6 +157,29 @@ export interface WorkspacePinValue {
   readonly pinnedSessionIds: readonly SessionId[]
 }
 
+/** Fleet halted every archivable Session across every Workspace this Host serves. */
+export interface WorkspaceFleetHaltRequest {
+  /**
+   * Stop each Session's running work — its turn, subagent descendants, owned
+   * background jobs, and active schedules — instead of refusing the archive
+   * as `workspace/session-active`. The stops are requested before each archive
+   * write and are not awaited; the response arrives once the durable archive
+   * set reflects every Session the dispatch archived.
+   */
+  readonly stopActivity?: boolean
+}
+
+/**
+ * The archived Session identities returned by a fleet halt, in the order each
+ * began archiving. `N` is the length of this list — the number of Sessions
+ * actually archived — never an attempted count, and the loop continues past
+ * per-Session refusals so a partial archive is reported truthfully rather than
+ * as the count offered.
+ */
+export interface WorkspaceFleetHaltValue {
+  readonly archivedSessionIds: readonly SessionId[]
+}
+
 /** Complete reconnect baseline for Workspace browser state. */
 export interface WorkspaceBaseline {
   readonly items: readonly WorkspaceView[]

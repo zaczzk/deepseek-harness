@@ -14,6 +14,8 @@ import type {
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
+  WorkspaceFleetHaltRequest,
+  WorkspaceFleetHaltValue,
   WorkspaceFollowFrame,
   WorkspaceInsertBeforeRequest,
   WorkspaceInitializeDefaultRequest,
@@ -169,6 +171,20 @@ export class WorkspaceController extends TypertRemoteService {
   @Remote('unarchiveSession')
   unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
     return this.commands.unarchiveSession(request)
+  }
+
+  /**
+   * Halt-all: archive every archivable Session across every Workspace this
+   * Host serves. The dispatch loops the per-Workspace Session membership the
+   * registry already owns, issues one marker-carrying `archiveSession` per
+   * Session, and returns the archived Session identities in dispatch order —
+   * a partial archive reports its resolution, never the count offered.
+   * @param request - whether to stop each Session's running work.
+   * @returns the archived Session identities.
+   */
+  @Remote('fleetHalt')
+  fleetHalt(request: WorkspaceFleetHaltRequest): Promise<WorkspaceFleetHaltValue> {
+    return this.commands.fleetHalt(request)
   }
 
   /**

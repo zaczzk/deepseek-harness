@@ -11,6 +11,8 @@ import type {
   WorkspaceCreateRequest,
   WorkspaceCreateValue,
   WorkspaceDeleteValue,
+  WorkspaceFleetHaltRequest,
+  WorkspaceFleetHaltValue,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceInitializeDefaultRequest,
   WorkspaceOrderValue,
@@ -206,6 +208,26 @@ export class ClientWorkspaceModel implements WorkspaceFollowSink {
       // The Host drops an archived session's pin in the same durable write;
       // mirror that locally so no frame shows the row both archived and pinned.
       this.installPinned(this.pinnedSessionIds.filter(id => id !== sessionId))
+    }
+    return result
+  }
+
+  /**
+   * Halt-all: request the Host archive every archivable Session across every
+   * Workspace, then install the returned archive set. A reply superseded by a
+   * later archive request or a pushed set installs nothing.
+   * @param options - Whether the Host stops each Session's running work instead of refusing.
+   * @returns generated Remote result.
+   */
+  async fleetHalt(
+    options: Pick<WorkspaceFleetHaltRequest, 'stopActivity'> = {},
+  ): Promise<RemoteResult<WorkspaceFleetHaltValue>> {
+    const requestSeq = ++this.archiveRequestSeq
+    const result = await this.remote.fleetHalt(
+      options.stopActivity === true ? { stopActivity: true } : {},
+    )
+    if (result.ok && requestSeq === this.archiveRequestSeq) {
+      this.installArchived(result.value.archivedSessionIds)
     }
     return result
   }
