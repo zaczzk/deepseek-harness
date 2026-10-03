@@ -8,7 +8,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdir, stat } from 'node:fs/promises'
 import { Context, Service } from '@deepseek-ai/cordis'
-import type { SessionHeader, SessionId } from '@deepseek-ai/dsh-session'
+import { SessionSeq, type SessionHeader, type SessionId, type SessionEvent } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
 import type { DomainGlobal, KvTable } from '@deepseek-ai/dsh-storage-domain'
 import { WorkspaceEntity } from './entity.ts'
@@ -394,7 +394,50 @@ export class WorkspaceRegistry extends Service {
         pinnedSessionIds: state.pinnedSessionIds.filter(id => id !== sessionId),
       })
       if (options.stopActivity === true) await this.stopSessionActivity(sessionId)
+      await this.appendFleetHaltEvent(sessionId, options)
     })
+  }
+
+  /**
+   * Append the log-only `workspace/halt` event to a Session archived as one
+   * iteration of a fleet halt, only when the call carried the fleet-halt
+   * marker. The row path passes no marker and appends nothing. The event is
+   * emitted after the archive commits, mirroring item 8's emit-after-commit
+   * rule. A persistence fault never fails the already-committed archive or
+   * the already-issued stop requests: it is logged and the archive resolves.
+   * @param sessionId - The archived Session to append to.
+   * @param options - The archive choices whose `fleet` marker decides emission.
+   * @returns resolution after the append attempt settles.
+   */
+  private async appendFleetHaltEvent(
+    sessionId: SessionId,
+    options: ArchiveSessionOptions,
+  ): Promise<void> {
+    if (options.fleet === undefined) return
+    try {
+      const handle = await this.ctx.sessionPersistence.open(sessionId, 'write')
+      try {
+        const { events } = await handle.read()
+        const event: SessionEvent<'workspace/halt'> = {
+          type: 'workspace/halt',
+          seq: SessionSeq(events.length),
+          time: Date.now(),
+          ignorable: true,
+          data: {
+            workspaceId: options.fleet.workspaceId,
+            count: options.fleet.count,
+          },
+        }
+        await handle.append([event])
+        await handle.flush()
+      } finally {
+        await handle.close()
+      }
+    } catch (error: unknown) {
+      this.ctx.logger.warn(
+        `workspace: fleet-halt event for archived session '${sessionId}' was not appended: ${String(error)}`,
+      )
+    }
   }
 
   /**

@@ -5257,7 +5257,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'IgnorableEventType',
-    declaration: 'export type IgnorableEventType = \'enhance/attempt\' | \'project/milestone\';',
+    declaration: 'export type IgnorableEventType = \'enhance/attempt\' | \'project/milestone\' | \'workspace/halt\';',
   },
   {
     name: 'IgnorableIntent',

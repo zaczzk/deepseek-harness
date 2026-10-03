@@ -21994,6 +21994,81 @@
           }
         ]
       }
+    },
+    {
+      "key": "event:workspace/halt",
+      "kind": "event",
+      "event": "workspace/halt",
+      "surface": false,
+      "digest": "a0339d89650f48920a94ccbbb1c74140ef4a2b8f9ecca0093f8e61c2803a334f",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 4,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 5,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "count",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "workspaceId",
+                "type": 3,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "literal",
+            "value": "workspace/halt"
+          }
+        ]
+      }
     }
   ],
   "types": [
@@ -22137,6 +22212,42 @@
       },
       "names": [],
       "sources": []
+    },
+    {
+      "digest": "050ee3e8793bb7f4803cb2b5523335f86a53056f7a910a18f2e526e3a465ffb0",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "count",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "workspaceId",
+                "type": 2,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          }
+        ]
+      },
+      "names": [],
+      "sources": [
+        "packages/workspace/workspace/src/types.ts:35"
+      ]
     },
     {
       "digest": "05a2796621b1ee6c03ef7abe560b25116bb4da4d592312117242a78415a32b04",
@@ -45323,7 +45434,8 @@
         "packages/webhook/webhook/src/brand.ts#WebhookRuleId",
         "packages/webhook/webhook/src/brand.ts#WebhookSourceId",
         "packages/workflow/workflow/src/types.ts#WorkflowRunId",
-        "packages/workspace/project-register/src/types.ts#MilestoneRowId"
+        "packages/workspace/project-register/src/types.ts#MilestoneRowId",
+        "packages/workspace/workspace/src/types.ts#WorkspaceId"
       ],
       "sources": [
         "packages/api/session-controller/src/types.ts:396",
@@ -45351,7 +45463,8 @@
         "packages/webhook/webhook/src/brand.ts:6",
         "packages/webhook/webhook/src/brand.ts:9",
         "packages/workflow/workflow/src/types.ts:13",
-        "packages/workspace/project-register/src/types.ts:17"
+        "packages/workspace/project-register/src/types.ts:17",
+        "packages/workspace/workspace/src/types.ts:16"
       ]
     },
     {
@@ -64330,6 +64443,20 @@
       ]
     },
     {
+      "digest": "89adc0c9a10e317d6ab87fbd76a50439b1f2adc8a446efecc0abfd2adfc1895a",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "literal",
+            "value": "workspace/halt"
+          }
+        ]
+      },
+      "names": [],
+      "sources": []
+    },
+    {
       "digest": "8a046b52331959aa3394680d6acbe09b8a5447c6b61375f263445bfcef19b7f1",
       "schema": {
         "root": 0,
@@ -69579,6 +69706,79 @@
           {
             "kind": "literal",
             "value": "tmux-context"
+          }
+        ]
+      },
+      "names": [],
+      "sources": []
+    },
+    {
+      "digest": "a0339d89650f48920a94ccbbb1c74140ef4a2b8f9ecca0093f8e61c2803a334f",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 4,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 5,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "count",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "workspaceId",
+                "type": 3,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "literal",
+            "value": "workspace/halt"
           }
         ]
       },
