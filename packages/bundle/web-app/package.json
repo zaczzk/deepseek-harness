@@ -142,6 +142,7 @@
     "@deepseek-ai/dsh-office-to-pdf": "workspace:^",
     "@deepseek-ai/dsh-persona": "workspace:^",
     "@deepseek-ai/dsh-plan-mode": "workspace:^",
+    "@deepseek-ai/dsh-decision-cost": "workspace:^",
     "@deepseek-ai/dsh-plugin-manager": "workspace:^",
     "@deepseek-ai/dsh-project-register": "workspace:^",
     "@deepseek-ai/dsh-session-log-export": "workspace:^",
