@@ -466,6 +466,19 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'artifactStore',
+    summary: 'The artifact store service: `ctx.artifactStore`.',
+    description: 'The artifact store service: `ctx.artifactStore`. Opens the `artifact_files` domain over the injected storage-domain facility and exposes the durable whole-file capture writes the workspace-changes recorder promotes, scoped by workspace. Reads and writes go through the single opened table; retention and eviction run on the write path and once at activation.',
+    methods: [
+      {
+        signature: 'async store(record: ArtifactRecord): Promise<ArtifactId>',
+        description: 'Promote one captured file side into the durable store, then apply the retention bounds: age-prune, then per-workspace cap eviction oldest turn first. `bytes` and `sha1` are caller-provided figures the store does not recompute.',
+        parameters: [{ name: 'record', description: 'the durable artifact fields to store.' }],
+        returns: 'the branded id of the stored artifact.',
+      },
+    ],
+  },
+  {
     key: 'attachments',
     summary: 'Immutable binary attachment service.',
     description: 'Immutable binary attachment service. Implementations validate bytes before publishing a reference.',
@@ -4478,6 +4491,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ArchiveSessionOptions',
     declaration: 'export interface ArchiveSessionOptions {\n    readonly stopActivity?: boolean;\n    readonly fleet?: {\n        readonly workspaceId: WorkspaceId;\n        readonly count: number;\n    };\n}',
+  },
+  {
+    name: 'ArtifactId',
+    declaration: 'export type ArtifactId = string & {\n    readonly __brand: \'dsh-artifact-id\';\n};',
+  },
+  {
+    name: 'ArtifactRecord',
+    declaration: 'export type ArtifactRecord = z.infer<typeof artifactRecord>;',
   },
   {
     name: 'AskUserQuestionAnswer',

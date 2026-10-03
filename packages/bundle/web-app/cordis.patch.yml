@@ -323,6 +323,12 @@
     - id: workspace-changes
       name: '@deepseek-ai/dsh-workspace-changes'
 
+    # Durable whole-file artifact store: promotes workspace-changes' SHA-1
+    # per-turn captures into a storage-domain-backed store with per-workspace
+    # oldest-turn-first eviction and age-based pruning.
+    - id: artifact-store
+      name: '@deepseek-ai/dsh-artifact-store'
+
     # Milestone enforcement: records every major milestone (completed goal,
     # completed milestone-tagged todo) as a DECISIONS.md register row carrying
     # the architecture diagram's state at that moment.

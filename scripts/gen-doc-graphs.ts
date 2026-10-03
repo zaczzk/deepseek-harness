@@ -438,6 +438,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state.',
   },
   {
+    key: 'artifactStore',
+    pkg: 'artifact-store',
+    title: 'Durable artifact store',
+    mode: 'service',
+    consumers: ['workspace-changes'],
+    note: 'Promotes workspace-changes SHA-1 whole-file captures into a storage-domain-backed store with per-workspace oldest-turn-first eviction and age-based pruning; the writer activates through the store service.',
+  },
+  {
     key: 'messageFeedback',
     pkg: 'message-feedback',
     title: 'Lifecycle-bound message feedback',

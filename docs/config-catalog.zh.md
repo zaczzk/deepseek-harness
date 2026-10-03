@@ -353,6 +353,32 @@ export interface Config {
 
 来源： [`packages/api/workspace-files/src/index.ts:70`](../packages/api/workspace-files/src/index.ts)
 
+<a id="deepseek-aidsh-artifact-store"></a>
+
+## `@deepseek-ai/dsh-artifact-store`
+
+需要： `storageDomain`
+
+```ts config-catalog
+/** Validated retention bounds. Absent fields leave the corresponding pass disabled. */
+export interface Config {
+  /**
+   * Per-workspace cap on stored artifact bytes. When a write passes the
+   * workspace's stored total past it, the oldest-turn-first captures of that
+   * workspace are evicted until the total is back at or under the cap. Absent
+   * means no cap — captures live until `retentionDays` prunes them.
+   */
+  maxStoreBytes?: number
+  /**
+   * Age in days after which a capture is pruned, applied on every write and
+   * once at activation. Absent means no age pruning.
+   */
+  retentionDays?: number
+}
+```
+
+来源： [`packages/storage/artifact-store/src/index.ts:31`](../packages/storage/artifact-store/src/index.ts)
+
 <a id="deepseek-aidsh-attachment-local"></a>
 
 ## `@deepseek-ai/dsh-attachment-local`
