@@ -58,6 +58,7 @@ class StubProvider implements SubagentProvider {
   constructor(options?: { outputSchema?: boolean; inheritsParentContext?: boolean }) {
     this.capabilities = {
       agentOptions: true,
+      cwd: true,
       outputSchema: options?.outputSchema ?? true,
       depthLimit: true,
       toolFilter: true,

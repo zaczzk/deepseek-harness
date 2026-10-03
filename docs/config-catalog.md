@@ -228,7 +228,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/job-controller/src/index.ts:35`](../packages/api/job-controller/src/index.ts)
+Source: [`packages/api/job-controller/src/index.ts:37`](../packages/api/job-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-session-controller"></a>
 
@@ -337,7 +337,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/api/workspace-controller/src/index.ts:34`](../packages/api/workspace-controller/src/index.ts)
+Source: [`packages/api/workspace-controller/src/index.ts:36`](../packages/api/workspace-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-workspace-files"></a>
 
@@ -3769,6 +3769,14 @@ export interface Config {
    * Agent options applied to every child; omitted fields use child-loop defaults.
    */
   agentOptions?: AgentOptions
+  /**
+   * Working directory every child session starts in. Requires the provider's
+   * `cwd` capability; omission inherits the delegating parent session's cwd.
+   * Absolute or, like the provider backends' own configured cwd, interpreted
+   * against the harness launch directory and validated as an enterable
+   * directory at load.
+   */
+  cwd?: string
   /**
    * Per-child persona that shadows `deployment:persona-prefix`. Requires the
    * provider's `persona` capability; omission preserves the deployment persona.

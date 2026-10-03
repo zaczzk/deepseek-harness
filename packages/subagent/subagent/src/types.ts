@@ -125,10 +125,11 @@ export interface SubagentRunEndInfo {
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * to `maxDepth`; `cwd` to `cwd`; the other names match.
  */
 export interface SubagentCapabilities {
   readonly agentOptions: boolean
+  readonly cwd: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
@@ -169,6 +170,14 @@ export interface SubagentStartRequest {
    * before initializing the separate child runtime.
    */
   readonly agentOptions?: AgentOptions
+  /**
+   * Optional working directory for the child session. Requires
+   * {@link SubagentCapabilities.cwd}; in-process providers stamp it as the
+   * child's immutable `SessionHeader.cwd` at creation, so the subsystems that
+   * partition per session bind this child to the configured directory.
+   * Omission inherits the delegating parent session's cwd.
+   */
+  readonly cwd?: string
   /**
    * Object-rooted JSON Schema within `assertObjectJsonSchema`'s enforced subset. Start rejects
    * unsupported schemas or providers without the capability. Data must be plain host-realm JSON;

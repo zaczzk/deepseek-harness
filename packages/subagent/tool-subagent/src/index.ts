@@ -75,6 +75,14 @@ export interface Config {
    */
   agentOptions?: AgentOptions
   /**
+   * Working directory every child session starts in. Requires the provider's
+   * `cwd` capability; omission inherits the delegating parent session's cwd.
+   * Absolute or, like the provider backends' own configured cwd, interpreted
+   * against the harness launch directory and validated as an enterable
+   * directory at load.
+   */
+  cwd?: string
+  /**
    * Per-child persona that shadows `deployment:persona-prefix`. Requires the
    * provider's `persona` capability; omission preserves the deployment persona.
    */
@@ -121,6 +129,7 @@ export const Config: z<Config> = z.object({
     reasoningEffort: ReturnType<typeof ReasoningEffortId>
     maxTokens: number
   }),
+  cwd: z.string(),
   persona: z.string(),
   // Preserve omission; Schemastery's `{ allow: [] }` default would deny every tool.
   toolFilter: z.object({
@@ -338,6 +347,11 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
         `tool-subagent: provider "${subagentProvider.name}" does not support child agentOptions`,
       )
     }
+    if (config.cwd !== undefined && !subagentProvider.capabilities.cwd) {
+      throw new Error(
+        `tool-subagent: provider "${subagentProvider.name}" does not support a child working directory (no cwd capability)`,
+      )
+    }
     if (modelSelectionCapable && !subagentProvider.capabilities.agentOptions) {
       throw new Error(
         `tool-subagent: provider "${subagentProvider.name}" does not support child model selection`,
@@ -518,6 +532,7 @@ export function apply(ctx: Context, config: Config, session?: Session): void {
             prompt: [{ type: 'text', text: args.prompt }] as ContentBlock[],
             parent,
             ...requestedChildAgentOptions !== undefined ? { agentOptions: requestedChildAgentOptions } : {},
+            ...config.cwd !== undefined ? { cwd: config.cwd } : {},
             ...config.persona !== undefined ? { persona: config.persona } : {},
             ...config.toolFilter !== undefined ? { toolFilter: config.toolFilter } : {},
             ...maxDepth !== undefined ? { maxDepth } : {},

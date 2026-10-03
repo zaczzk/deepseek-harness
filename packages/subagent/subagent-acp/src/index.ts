@@ -146,6 +146,7 @@ function resolveCwd(configured: string | undefined, request: SubagentStartReques
 class AcpProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = {
     agentOptions: false,
+    cwd: false,
     outputSchema: false,
     depthLimit: false,
     toolFilter: false,

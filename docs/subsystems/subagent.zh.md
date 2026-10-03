@@ -24,10 +24,11 @@ Service Definition：[dsh-subagent](../../packages/subagent/subagent)（`ctx.sub
  * continuable children are composed by the continuation manager itself and are
  * gated by {@link SubagentProvider.prepareContinuable} instead. Each flag
  * corresponds one-to-one to a {@link SubagentStartRequest} option: `depthLimit`
- * to `maxDepth`; the other names match.
+ * to `maxDepth`; `cwd` to `cwd`; the other names match.
  */
 interface SubagentCapabilities {
   readonly agentOptions: boolean
+  readonly cwd: boolean
   readonly outputSchema: boolean
   readonly depthLimit: boolean
   readonly toolFilter: boolean
@@ -37,7 +38,7 @@ interface SubagentCapabilities {
 
 ## 单次启动请求
 
-工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系与委派深度。可选的 Agent 提供方、模型、推理强度与 token 覆盖、output schema、depth、工具过滤器和 persona 需要对应的能力 flag 匹配。进程内后端会把 `agentOptions` 合并到父 Agent 选项之上，将 filter 和 persona 的作用域限定在子 agent 创建阶段，并通过强制 capture 工具实现所支持的 object-rooted schema。DSH SDK 后端会把四个 Agent 路由字段合并到实例默认值之上，并在子运行时初始化期间校验；ACP、Codex 与 Claude Code 会在启动传输前拒绝 `agentOptions`。
+工具层根据模型输入和自身配置构建此请求；服务在 `start` 之前针对指定提供方进行校验。必填的 `parent` 提供会话 cwd、谱系与委派深度。可选的 Agent 提供方、模型、推理强度与 token 覆盖、工作目录、output schema、depth、工具过滤器和 persona 需要对应的能力 flag 匹配。进程内后端会把 `agentOptions` 合并到父 Agent 选项之上，将 filter 和 persona 的作用域限定在子 agent 创建阶段，并通过强制 capture 工具实现所支持的 object-rooted schema。DSH SDK 后端会把四个 Agent 路由字段合并到实例默认值之上，并在子运行时初始化期间校验；ACP、Codex 与 Claude Code 会在启动传输前拒绝 `agentOptions`。
 
 ```ts type-equiv
 /**
@@ -74,6 +75,14 @@ interface SubagentStartRequest {
    * before initializing the separate child runtime.
    */
   readonly agentOptions?: AgentOptions
+  /**
+   * Optional working directory for the child session. Requires
+   * {@link SubagentCapabilities.cwd}; in-process providers stamp it as the
+   * child's immutable `SessionHeader.cwd` at creation, so the subsystems that
+   * partition per session bind this child to the configured directory.
+   * Omission inherits the delegating parent session's cwd.
+   */
+  readonly cwd?: string
   /**
    * Object-rooted JSON Schema within `assertObjectJsonSchema`'s enforced subset. Start rejects
    * unsupported schemas or providers without the capability. Data must be plain host-realm JSON;
