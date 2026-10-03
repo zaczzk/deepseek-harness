@@ -235,28 +235,28 @@ describe('register guidance discovery and load', () => {
     }
   })
 
-    it('loads with provider and renders rows with a changed diagram freshness', async () => {
-      const ctx = new Context()
-      await ctx.plugin(RecordingFileSystem)
-      const fs = ctx.fs as RecordingFileSystem
-      const root = resolve(tmpdir(), 'ai-register-provider')
-      fs.entries.set(FsTargetKey(join(root, '.git')), { type: 'dir' })
-      fs.entries.set(FsTargetKey(join(root, 'DECISIONS.md')), {
-        type: 'file',
-        content: registerTable(['| M1 | 2026-10-02 | milestone | Dial | done | updated@abc12345 |']),
-      })
-      fs.entries.set(FsTargetKey(join(root, 'ARCHITECTURE.md')), { type: 'file', content: '```mermaid\ngraph TD\nB[two]\n```' })
-
-      try {
-        const rendered = await loadBaselineInstructions(
-          { cwd: root, dshHome: join(root, 'dsh'), maxBytes: 65536 },
-          fs,
-        )
-        expect(rendered).toBeDefined()
-        expect(rendered!.text).toContain('Instructions from: DECISIONS.md')
-        expect(rendered!.text).toContain('Latest milestone M1')
-      } finally {
-        await ctx.fiber.dispose()
-      }
+  it('loads with provider and renders rows with a changed diagram freshness', async () => {
+    const ctx = new Context()
+    await ctx.plugin(RecordingFileSystem)
+    const fs = ctx.fs as RecordingFileSystem
+    const root = resolve(tmpdir(), 'ai-register-provider')
+    fs.entries.set(FsTargetKey(join(root, '.git')), { type: 'dir' })
+    fs.entries.set(FsTargetKey(join(root, 'DECISIONS.md')), {
+      type: 'file',
+      content: registerTable(['| M1 | 2026-10-02 | milestone | Dial | done | updated@abc12345 |']),
     })
+    fs.entries.set(FsTargetKey(join(root, 'ARCHITECTURE.md')), { type: 'file', content: '```mermaid\ngraph TD\nB[two]\n```' })
+
+    try {
+      const rendered = await loadBaselineInstructions(
+        { cwd: root, dshHome: join(root, 'dsh'), maxBytes: 65536 },
+        fs,
+      )
+      expect(rendered).toBeDefined()
+      expect(rendered!.text).toContain('Instructions from: DECISIONS.md')
+      expect(rendered!.text).toContain('Latest milestone M1')
+    } finally {
+      await ctx.fiber.dispose()
+    }
+  })
 })

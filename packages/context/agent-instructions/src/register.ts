@@ -18,8 +18,8 @@ import {
 export const REGISTER_GUIDANCE_DISPLAY = REGISTER_FILE
 
 /** Table header line rendered before the register rows. */
-const REGISTER_GUIDANCE_HEADER = `| ID | Date | Kind | Title | Status | Diagram |`
-const REGISTER_GUIDANCE_SEPARATOR = `|----|------|------|-------|--------|---------|`
+const REGISTER_GUIDANCE_HEADER = '| ID | Date | Kind | Title | Status | Diagram |'
+const REGISTER_GUIDANCE_SEPARATOR = '|----|------|------|-------|--------|---------|'
 
 /**
  * Render the ranked register guidance block for one project register.
