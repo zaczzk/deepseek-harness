@@ -270,6 +270,25 @@ describe('dsh-subagent-spawn-in-process', () => {
     await parentHandle.dispose()
   })
 
+  it('overrides the parent cwd when the request names a child cwd', async () => {
+    const { ctx } = await setup([textResponse('x')])
+    const parentHandle = await ctx.agents.create({
+      sessionId: SessionId('cwd-parent-session-2'),
+      meta: { cwd: '/tmp/parent-workspace' },
+      agentOptions: { provider: 'mock', model: 'mock' },
+    })
+    const run = await start(ctx, 'spawn', {
+      prompt: [{ type: 'text', text: 'p' }],
+      parent: parentHandle.agent,
+      cwd: '/tmp/child-workspace',
+    })
+    await run.result
+    const child = ctx.agents.get(run.id)!
+    expect(child.session.header.cwd).toBe('/tmp/child-workspace')
+    await run.dispose()
+    await parentHandle.dispose()
+  })
+
   it('uses request.agentOptions.model when the parent has no model of its own', async () => {
     const { ctx } = await setup([textResponse('explicit model child')])
     // A parent with NO model (its own turns would need one supplied per-request).
@@ -295,6 +314,7 @@ describe('dsh-subagent-spawn-in-process', () => {
     const provider = ctx.subagents.getProvider('spawn')!
     expect(provider.capabilities).toEqual({
       agentOptions: true,
+      cwd: true,
       outputSchema: true,
       depthLimit: true,
       toolFilter: true,

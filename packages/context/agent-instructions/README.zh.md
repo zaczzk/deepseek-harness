@@ -33,7 +33,7 @@ kind: "package-reference"
 
 ### 配置
 
-默认设置适合典型检出：`.git` 标记项目根目录，`AGENTS.md` 与 `CLAUDE.md` 是基础候选，`AGENTS.local.md` 与 `CLAUDE.local.md` 是叠加的本地 overlay。只有 `maxBytes` 必填——它限制完整渲染后的基线，让每个部署显式选择自己的提示词预算。
+默认设置适合典型检出：`.git` 标记项目根目录，`AGENTS.md` 与 `CLAUDE.md` 是基础候选，`AGENTS.local.md` 与 `CLAUDE.local.md` 是叠加的本地 overlay。项目决策注册表（`DECISIONS.md`）被解析为分级注册表指导：注册表的表格行与最新里程碑的图表新鲜度，渲染为受相同 `maxBytes` 预算约束的紧凑表格。只有 `maxBytes` 必填——它限制完整渲染后的基线，让每个部署显式选择自己的提示词预算。
 
 只有确认项目根标记不存在时，项目根发现才会继续上溯。权限或 I/O 失败会停止发现，并抛出宿主或文件系统提供方的原始错误，而不会选择祖先项目。[根标记元数据决策](../../../.agents/notes/implemented/bug-fix/2026-09-03-root-marker-metadata-failures.zh.md)说明发现为何必须失败，而不能替换为其他根目录。
 
@@ -53,6 +53,7 @@ export interface Config {
   maxSourceBytes?: number
   instructionFileCandidates?: string[]
   localInstructionFileCandidates?: string[]
+  registerFileCandidates?: string[]
 }
 ```
 
@@ -63,7 +64,10 @@ export interface Config {
 | `projectRootMarkers` | `['.git']` | 标记项目根目录的目录名 |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | 每个项目目录中加载的基础文件名 |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | 在基础文件之后加载的本地 overlay 文件名 |
+| `registerFileCandidates` | `['DECISIONS.md']` | 项目根目录中解析为分级注册表指导的决策注册表文件名；设为空可禁用 |
 | `dshHome` | `$DSH_HOME` 或 `~/.dsh` | 存放用户全局 `AGENTS.md` 的目录 |
+
+分级注册表指导以 `util/project-register` 发布的紧凑行格式原样渲染注册表的表格行，随后附上最新里程碑的图表新鲜度行。原始注册表正文从不注入——只注入分级的表格与新鲜度行，因此没有理由说明的表格不会诱使模型把行标题当作权威。不可读或无行的注册表不贡献任何内容，整个块与其他指令文件受相同的 `maxBytes` 预算约束。
 
 生成的[配置目录](../../../docs/config-catalog.zh.md#deepseek-aidsh-agent-instructions)是每个受支持字段及其 JSDoc 的穷尽式真源。
 
@@ -93,6 +97,7 @@ export interface Config {
 | [`src/config.ts`](src/config.ts) | `Config` schema、预算解析、基线标识 |
 | [`src/files.ts`](src/files.ts) | 候选发现、项目根搜索、有界流式读取 |
 | [`src/render.ts`](src/render.ts) | 指令渲染、预算截断、变更记录 |
+| [`src/register.ts`](src/register.ts) | 由 `util/project-register` 解析的分级注册表指导 |
 | [`src/state.ts`](src/state.ts) | 持久消息来源、版本／digest 缓存、对账 |
 | [`src/digest.ts`](src/digest.ts) | SHA-1 内容标识与每目录重复键 |
 | — | 不发布运行时不变式伴生入口；回放会容忍未知或格式错误的 workspace source，私有 pending/cache 状态转换由针对性流水线测试覆盖。 |

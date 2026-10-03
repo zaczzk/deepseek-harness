@@ -1,0 +1,15 @@
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.title {
+  font-weight: 500;
+}
+
+.expiry {
+  color: var(--dsh-text-color-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+}

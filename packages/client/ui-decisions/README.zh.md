@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-用本包在会话中直接查看工作区的重大决策登记表。`decisions` 会话视图通过 `workspaceFiles` Remote 读取 `DECISIONS.md`，按最新在前渲染其决策登记表：每个决策或里程碑一行，里程碑行的 Diagram 列显示其记录的图形状态，并标记出最新的里程碑行。
+用本包在会话中直接查看工作区的重大决策登记表。`decisions` 会话视图通过 `workspaceFiles` Remote 读取 `DECISIONS.md`，按最新在前渲染其决策登记表：每个决策或里程碑一行，里程碑行的 Diagram 列显示其记录的图形状态，并标记出最新的里程碑行。表格上方有一个控件，把登记文档本身放入剪贴板。
 
 ## 目录
 
@@ -28,6 +28,8 @@ kind: "package-reference"
 将本包与 `ui-conversation`、`workspace-files` 客户端面以及提供 `file` 提供者的 resources 插件一同挂载到 Web 客户端名单。它注册一个 `conversation.view` 条目（`decisions`，顺序 30），标签走 `decisions` 语言包。标签页的一切都从所寻址的 Session 推导：Host 将 `DECISIONS.md` 解析到该 Session 的工作区根目录，因此浏览器端无需传递根路径。
 
 各行按最新在前（文件顺序倒序）呈现。Diagram 列显示里程碑行记录的标记——`updated`、`stale` 或 `absent`——决策行则显示 `—`。最新的里程碑行会被标记，使其记录的图形状态最先被看到。
+
+复制控件取用读到的登记文档，而不重新渲染表格，因此结果会带上表格下方文件中保存的说明文字。它会报告 Host 对这次写入的处理结果，并在两秒后回到静止标签。
 
 ### 配置
 

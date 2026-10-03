@@ -513,7 +513,7 @@ export type SurfaceEventType =
  * log containing them. {@link Session.append} accepts these events only with
  * their {@link IgnorableIntent} marker, and seed admission refuses one without it.
  */
-export type IgnorableEventType = 'enhance/attempt'
+export type IgnorableEventType = 'enhance/attempt' | 'project/milestone' | 'workspace/halt'
 
 /**
  * Envelope metadata {@link Session.append} requires for one

@@ -9,6 +9,7 @@ import type { Branded } from '@deepseek-ai/dsh-brand'
 import type { Scoped } from '@deepseek-ai/dsh-scope'
 import type { Agent } from '@deepseek-ai/dsh-agent/types'
 import type { ToolCallId } from '@deepseek-ai/dsh-llm/brand'
+import type { ApprovalRuleId } from './rules.ts'
 
 /**
  * Pairs one `approval/asked` audit event with its `approval/decided`.
@@ -31,6 +32,21 @@ export function ApprovalRequestId(id: string): ApprovalRequestId {
  */
 export type ApprovalOutcome = 'allowed-once' | 'rejected' | 'cancelled' | 'unavailable'
 
+/**
+ * The durable approval-rule reference carried on an audit event when a
+ * remembered rule answered the request: the brandable rule persists in the
+ * `approval_rules` domain; only the fields the transcript row renders ride the
+ * event. `expiresAt` is ISO-8601, matching the durable record's field.
+ */
+export interface ApprovalRuleReference {
+  /** The durable rule's branded id. */
+  readonly id: ApprovalRuleId
+  /** Human-readable rule name (the Settings form's name field). */
+  readonly name: string
+  /** ISO-8601 expiry, when the answering rule is not permanent. */
+  readonly expiresAt?: string
+}
+
 declare module '@deepseek-ai/dsh-session/types' {
   interface SessionEventMap {
     /**
@@ -39,22 +55,27 @@ declare module '@deepseek-ai/dsh-session/types' {
      * it with the `approval/decided` that always follows; `toolName` is the
      * tool the question is about, `callId` the exact tool call when the asker
      * had one, `reason` the asker's human-readable explanation (e.g. a hook's
-     * permission-decision reason).
+     * permission-decision reason). `rule` is set when a remembered rule
+     * answered before any human or machine answerer, so the log explains why
+     * an allow happened without asking.
      */
     'approval/asked': {
       id: ApprovalRequestId
       toolName: string
       callId?: ToolCallId
       reason?: string
+      rule?: ApprovalRuleReference
     }
     /**
      * The outcome of a prior `approval/asked` (same `id`) — log-only audit.
      * Exactly one per ask, appended when the outcome is known: a decision, a
-     * cancellation, or the fail-closed `'unavailable'`.
+     * cancellation, or the fail-closed `'unavailable'`. `rule` repeats the
+     * answering rule reference (same fields as the `approval/asked` sibling).
      */
     'approval/decided': {
       id: ApprovalRequestId
       outcome: ApprovalOutcome
+      rule?: ApprovalRuleReference
     }
   }
 }

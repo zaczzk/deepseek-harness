@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-用本包在会话中直接查看工作区当前的架构图。`architecture` 会话视图通过 `workspaceFiles` Remote 读取 `ARCHITECTURE.md`，用 Mermaid 渲染其中第一个 `mermaid` 代码块，并在文件名旁显示 `DECISIONS.md` 最新里程碑记录的图形状态。被里程碑记录为 stale 的架构图会在画布上方保留一行操作提示，直到其源码发生变化。
+用本包在会话中直接查看工作区当前的架构图。`architecture` 会话视图通过 `workspaceFiles` Remote 读取 `ARCHITECTURE.md`，用 Mermaid 渲染其中第一个 `mermaid` 代码块，并在文件名旁显示 `DECISIONS.md` 最新里程碑记录的图形状态。自最新里程碑以来已改动、或被记录为 stale 且尚未改动的架构图，都会在画布上方保留一行操作提示。
 
 ## 目录
 
@@ -27,7 +27,7 @@ kind: "package-reference"
 
 将本包与 `ui-conversation`、`workspace-files` 客户端面以及提供 `file` 提供者的 resources 插件一同挂载到 Web 客户端名单。它注册一个 `conversation.view` 条目（`architecture`，顺序 20），标签走 `architecture` 语言包。标签页的一切都从所寻址的 Session 推导：Host 将 `ARCHITECTURE.md` 与 `DECISIONS.md` 解析到该 Session 的工作区根目录，因此浏览器端无需传递根路径。
 
-状态徽标报告架构图的实时状态：`current`、`stale` 或 `absent`。当最新里程碑行记录为 `stale` 且架构图源码指纹仍与当时相同时，状态为 `stale`；编辑源码即清除该状态。
+状态徽标报告架构图的实时状态：`current`、`changed`、`stale` 或 `absent`。里程碑记录了架构图源码的指纹，因此 `changed` 表示当前源码已与该指纹不符、此后的改动尚未经过里程碑；`stale` 表示最新里程碑记录该架构图未更新，且其源码指纹仍与当时相同。两者都会给出一行操作提示，编辑源码会把 stale 变为 `changed`，而不是清除该提示。
 
 ### 配置
 
@@ -39,7 +39,7 @@ kind: "package-reference"
 <details>
 <summary>实现内部 —— 点击展开</summary>
 
-标准 `useResource` 钩子通过 `file` 提供者给出每个文档的元数据（版本），标签页自己的 store 保存它通过 `workspaceFiles.readBytes` 读取的文本，以及 Mermaid 为提取出的架构图源码渲染的 SVG。每个观测到的元数据版本只发起一次读取，因此失败的读取保持失败，直到文件再次变化；一个视图的读取与渲染按提交顺序落定。Mermaid 的浏览器打包为一个延迟加载的自包含 client chunk；`tsdown.config.ts` 在打包期间绑定它的脚本作用域全局变量。
+标准 `useResource` 钩子通过 `file` 提供者给出每个文档的元数据（版本），标签页自己的 store 保存它通过 `workspaceFiles.readBytes` 读取的文本，以及 Mermaid 为提取出的架构图源码渲染的 SVG。每个观测到的元数据版本只发起一次读取，因此失败的读取保持失败，直到文件再次变化；一个视图的读取与渲染按提交顺序落定。Mermaid 的浏览器包以静态副作用导入内联，因此 client bundle 保持自包含；`tsdown.config.ts` 在打包期间绑定它的脚本作用域全局变量。
 
 ### 源码地图
 
@@ -49,7 +49,8 @@ kind: "package-reference"
 | [`src/client/ArchitectureView.tsx`](src/client/ArchitectureView.tsx) | 状态条、图画布与状态行 |
 | [`src/client/store.ts`](src/client/store.ts) | 每个 Session 的文档与渲染状态 |
 | [`src/client/face.ts`](src/client/face.ts) | 按序写入 store 的读取与渲染 |
-| [`src/client/render-diagram.ts`](src/client/render-diagram.ts) | Mermaid 惰性加载与 SVG 渲染 |
+| [`src/client/render-diagram.ts`](src/client/render-diagram.ts) | Mermaid 内联加载与 SVG 渲染 |
+| [`src/client/failure-text.ts`](src/client/failure-text.ts) | 将渲染失败归约为失败提示旁显示的一行 |
 | — | 不发布运行时不变量伴随模块；所有显示值均来自调用时的 Host 读取。 |
 
 </details>
@@ -79,7 +80,7 @@ kind: "package-reference"
 <a id="known-limitations-and-deferred-work"></a>
 
 - **每份文档只渲染一张图** —— 只渲染第一个 `mermaid` 代码块，后续代码块保持隐藏。
-- **Mermaid 方言跟随打包的渲染器** —— 冷门图表类型从同一打包加载其 chunk；Mermaid 无法解析的源码显示渲染失败行，而不是源码文本。
+- **Mermaid 方言跟随打包的渲染器** —— 冷门图表类型从同一打包加载其 chunk；Mermaid 无法解析的源码会在失败提示旁显示渲染器自身错误的首行，它是工具输出而非翻译过的文案。
 - **无平移缩放** —— SVG 缩放至画布宽度并纵向滚动。
 
 <a id="dev-note"></a>

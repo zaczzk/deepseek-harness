@@ -273,6 +273,78 @@ describe('WorkspaceController commands', () => {
       .resolves.toEqual({ archivedSessionIds: [] })
   })
 
+  it('halts every archivable Session across every Workspace and reports a partial archive truthfully', async () => {
+    const { controller, ctx, root } = await harness()
+    const first = await controller.create({ path: stageDir(root, 'halt-first') })
+    const second = await controller.create({ path: stageDir(root, 'halt-second') })
+    const firstWorkspace = ctx.workspaceRegistry.get(first.workspace.workspaceId)
+    const secondWorkspace = ctx.workspaceRegistry.get(second.workspace.workspaceId)
+    if (firstWorkspace === undefined || secondWorkspace === undefined) throw new Error('fixture Workspaces disappeared')
+
+    const a = ctx.sessions.create(SessionId('halt-a'), { meta: { cwd: first.workspace.path } })
+    const b = ctx.sessions.create(SessionId('halt-b'), { meta: { cwd: first.workspace.path } })
+    const c = ctx.sessions.create(SessionId('halt-c'), { meta: { cwd: second.workspace.path } })
+    await firstWorkspace.attachSession(a.id)
+    await firstWorkspace.attachSession(b.id)
+    await secondWorkspace.attachSession(c.id)
+
+    // Each dispatched call carries the fleet marker with the fleet-wide count
+    // and the branded id of the Workspace this iteration targeted.
+    const fleets: Array<{ workspaceId: WorkspaceId; count: number }> = []
+    const originalArchive = ctx.workspaceRegistry.archiveSession.bind(ctx.workspaceRegistry)
+    const spy = vi.spyOn(ctx.workspaceRegistry, 'archiveSession').mockImplementation(async (sessionId, options) => {
+      if (options.fleet !== undefined) fleets.push({ workspaceId: options.fleet.workspaceId, count: options.fleet.count })
+      await originalArchive(sessionId, options)
+    })
+    const stops: string[] = []
+    const stopListening = ctx.on('workspace/session-stop', ({ sessionId }) => { stops.push(String(sessionId)) })
+    const firstArchived = await controller.fleetHalt({ stopActivity: true })
+    spy.mockRestore()
+    stopListening()
+    expect([...firstArchived.archivedSessionIds].sort()).toEqual([String(a.id), String(b.id), String(c.id)].sort())
+    expect(fleets).toHaveLength(3)
+    expect(fleets.every(fleet => fleet.count === 3)).toBe(true)
+    // Each dispatched call stamped the branded id of the Workspace it targeted.
+    expect(fleets.filter(fleet => fleet.workspaceId === first.workspace.workspaceId)).toHaveLength(2)
+    expect(fleets.filter(fleet => fleet.workspaceId === second.workspace.workspaceId)).toHaveLength(1)
+    expect(stops.sort()).toEqual([String(a.id), String(b.id), String(c.id)].sort())
+
+    // One Session refuses after the first; the loop continues and the return
+    // list is exactly what archived — never the count offered — and every other
+    // offered Session still archives.
+    const reload = await harness()
+    const r1 = await reload.controller.create({ path: stageDir(reload.root, 'r1') })
+    const r2 = await reload.controller.create({ path: stageDir(reload.root, 'r2') })
+    const w1 = reload.ctx.workspaceRegistry.get(r1.workspace.workspaceId)
+    const w2 = reload.ctx.workspaceRegistry.get(r2.workspace.workspaceId)
+    if (w1 === undefined || w2 === undefined) throw new Error('reload fixture Workspaces disappeared')
+    const sa = reload.ctx.sessions.create(SessionId('sa'), { meta: { cwd: r1.workspace.path } })
+    const sb = reload.ctx.sessions.create(SessionId('sb'), { meta: { cwd: r1.workspace.path } })
+    await w1.attachSession(sa.id)
+    await w1.attachSession(sb.id)
+    await w2.attachSession(reload.ctx.sessions.create(SessionId('sc'), { meta: { cwd: r2.workspace.path } }).id)
+    const refusal = vi.spyOn(reload.ctx.workspaceRegistry, 'archiveSession')
+      .mockImplementationOnce(async (sessionId, options) => {
+        expect(options).toMatchObject({ fleet: { count: 3 } })
+        throw new Error('storage fault')
+      })
+    const partial = await reload.controller.fleetHalt()
+    refusal.mockRestore()
+    // The refusal refuses whichever Session the dispatch offers first (the
+    // reload registry prepends r2, so sc is offered before r1's members),
+    // so the archived set is all three offered members minus exactly one.
+    expect(partial.archivedSessionIds).toHaveLength(2)
+    expect([...reload.ctx.workspaceRegistry.archivedSessionIds]).toHaveLength(2)
+    expect(new Set(partial.archivedSessionIds)).toEqual(new Set(reload.ctx.workspaceRegistry.archivedSessionIds))
+
+    // A Session already archived is not offered and not re-issued; the one
+    // the partial refused is still unarchived, so the second halt archives
+    // exactly that remainder and then every Session is archived.
+    const again = await reload.controller.fleetHalt()
+    expect(again.archivedSessionIds).toHaveLength(1)
+    expect([...reload.ctx.workspaceRegistry.archivedSessionIds]).toHaveLength(3)
+  })
+
   it('pins only known unarchived Sessions and unpins idempotently', async () => {
     const { controller, ctx, root } = await harness()
     const created = await controller.create({ path: stageDir(root, 'pins') })

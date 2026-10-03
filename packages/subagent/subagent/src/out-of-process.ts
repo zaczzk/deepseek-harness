@@ -56,6 +56,7 @@ function normalizeSubagentDiagnostic(result: SubagentResult): SubagentResult {
  */
 export const NO_START_CAPABILITIES: SubagentCapabilities = Object.freeze({
   agentOptions: false,
+  cwd: false,
   outputSchema: false,
   depthLimit: false,
   toolFilter: false,

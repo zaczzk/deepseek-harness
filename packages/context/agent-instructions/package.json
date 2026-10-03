@@ -37,6 +37,7 @@
     "@deepseek-ai/dsh-tools": "workspace:^"
   },
   "dependencies": {
+    "@deepseek-ai/dsh-util-project-register": "workspace:^",
     "@deepseek-ai/dsh-util-values": "workspace:^",
     "@deepseek-ai/schemastery": "workspace:^"
   },
@@ -55,6 +56,7 @@
     "@deepseek-ai/dsh-session-projection": "workspace:^",
     "@deepseek-ai/dsh-system-prompt": "workspace:^",
     "@deepseek-ai/dsh-tool-fs": "workspace:^",
-    "@deepseek-ai/dsh-tools": "workspace:^"
+    "@deepseek-ai/dsh-tools": "workspace:^",
+    "@deepseek-ai/dsh-util-project-register": "workspace:^"
   }
 }

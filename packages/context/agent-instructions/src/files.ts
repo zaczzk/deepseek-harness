@@ -10,8 +10,10 @@ import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import type { FileSystem, FsInfo, FsTarget, FsVersion } from '@deepseek-ai/dsh-fs'
 import { dshHomeDisplay } from '@deepseek-ai/dsh-home-paths'
 import { assertNever } from '@deepseek-ai/dsh-util-values'
+import { ARCHITECTURE_FILE } from '@deepseek-ai/dsh-util-project-register'
 import { resolveConfig, resolveDiscoveryConfig, type ResolvedConfig } from './config.ts'
 import { trimmedInstructionDigest } from './digest.ts'
+import { renderRegisterGuidance } from './register.ts'
 import {
   decodeScopeKey,
   renderAgentInstructionSet,
@@ -37,6 +39,8 @@ interface DiscoveredInstructionFile extends InstructionFile {
   target?: FsTarget
   size?: number
   version?: FsVersion
+  /** Marks a project-register candidate whose content renders as ranked register guidance. */
+  register?: boolean
 }
 
 /** Provider metadata for a probed scope candidate before its content is read. */
@@ -52,6 +56,7 @@ interface DiscoverOptions {
   projectRootMarkers?: string[]
   instructionFileCandidates?: string[]
   localInstructionFileCandidates?: string[]
+  registerFileCandidates?: string[]
   projectRoot?: string
   signal?: AbortSignal
 }
@@ -60,6 +65,36 @@ interface LoadOptions extends DiscoverOptions {
   maxBytes: number
   maxSourceBytes?: number
   replacePreviousBaseline?: boolean
+}
+
+/**
+ * Render a discovered project-register candidate into its ranked register
+ * guidance, reading the sibling architecture document for diagram freshness.
+ * @param file - the discovered register candidate (its probe metadata).
+ * @param config - normalized instruction configuration.
+ * @param fileSystem - optional provider used to read the architecture document.
+ * @param options - discovery options carrying cwd, root markers, and cancellation.
+ * @returns the ranked register block, or an empty string when no row is parseable.
+ */
+async function registerGuidanceContent(
+  file: DiscoveredInstructionFile,
+  config: ResolvedConfig,
+  fileSystem: FileSystem | undefined,
+  options: DiscoverOptions,
+): Promise<string> {
+  const registerText = await readBounded(file, config.maxSourceBytes, fileSystem, options.signal)
+  /* v8 ignore next 2 -- the outer loop verified this same register read returned
+     content, so this defensive guard cannot fire through the public load path. */
+  if (registerText === undefined) return ''
+  const projectRoot = options.projectRoot
+    ?? await findProjectRoot(resolve(options.cwd), config.projectRootMarkers, fileSystem, options.signal)
+  const architecture = await readBounded(
+    { absolutePath: join(projectRoot, ARCHITECTURE_FILE) },
+    config.maxSourceBytes,
+    fileSystem,
+    options.signal,
+  )
+  return renderRegisterGuidance(registerText, architecture)
 }
 
 /** Rendered baseline plus the successfully read and byte-budget-retained files. */
@@ -303,6 +338,29 @@ async function discoverInstructionFiles(
   const cwd = resolve(options.cwd)
   const projectRoot = options.projectRoot
     ?? await findProjectRoot(cwd, config.projectRootMarkers, fileSystem, options.signal)
+  for (const candidate of config.registerFileCandidates) {
+    const registerPath = join(projectRoot, candidate)
+    const probe = await statFile(registerPath, fileSystem, options.signal)
+    switch (probe.kind) {
+      case 'present':
+        addFile({
+          absolutePath: registerPath,
+          displayPath: relativeDisplay(projectRoot, registerPath),
+          register: true,
+          ...probe.info,
+        })
+        break
+      // A missing or unavailable register candidate is skipped so the
+      // remaining instruction chains load; an unreadable register surfaces
+      // nothing rather than an error because it is optional ranked context.
+      case 'absent':
+      case 'unavailable':
+        break
+      /* v8 ignore next 2 -- StatFileProbe is closed; this arm only makes adding a kind a compile error. */
+      default:
+        assertNever(probe, 'StatFileProbe')
+    }
+  }
   for (const dir of ancestorChain(projectRoot, cwd)) {
     for (const candidates of [config.instructionFileCandidates, config.localInstructionFileCandidates]) {
       for (const file of await allExistingInstructionFiles(dir, projectRoot, candidates, fileSystem, options.signal)) {
@@ -423,10 +481,22 @@ export async function loadBaselineInstructionSet(
   for (const file of discovered) {
     const content = await readBounded(file, config.maxSourceBytes, fileSystem, options.signal)
     if (content !== undefined) {
+      // A project-register candidate is replaced by its ranked register
+      // guidance interpretation; the raw register table is not injected as an
+      // instruction file. Unreadable architecture resolves to undefined and
+      // yields a row-only block.
+      const registerCandidate = file.register === true
+      const rendered = registerCandidate
+        ? await registerGuidanceContent(file, config, fileSystem, options)
+        : content
+      // An empty rendered block means no register row was parseable — the
+      // register candidate contributes nothing. Ordinary instruction files
+      // with empty content still emit their "Instructions from:" header.
+      if (registerCandidate && rendered === '') continue
       loaded.push({
         absolutePath: file.absolutePath,
         displayPath: file.displayPath,
-        content,
+        content: rendered,
         ...file.version === undefined ? {} : { version: file.version },
       })
     }

@@ -82,6 +82,31 @@ export interface TypeApiEntry {
 /** Every harness `ctx.<key>` service, sorted by key. */
 export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
+    key: 'approvalRuleSets',
+    summary: 'The client approval-rules service face.',
+    description: 'The client approval-rules service face.',
+    methods: [
+      {
+        signature: 'list(): Promise<RemoteResult<ApprovalRuleListValue>>',
+        description: 'List every current (unexpired) remembered rule.',
+        parameters: [],
+        returns: 'the unexpired rule rows, or the failure for a rejected read.',
+      },
+      {
+        signature: 'save(record: ApprovalRuleRecord): Promise<RemoteResult<ApprovalRuleSaveValue>>',
+        description: 'Save (create or replace) one remembered rule.',
+        parameters: [{ name: 'record', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule, or the failure.',
+      },
+      {
+        signature: 'revoke(id: ApprovalRuleId): Promise<RemoteResult<ApprovalRuleRevokeValue>>',
+        description: 'Revoke one remembered rule by id.',
+        parameters: [{ name: 'id', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed, or the failure.',
+      },
+    ],
+  },
+  {
     key: 'layout',
     summary: 'Panel navigation and geometry actions exposed through ctx.layout.',
     description: 'Panel navigation and geometry actions exposed through ctx.layout.',
@@ -174,6 +199,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Untyped form for namespaces outside the merge table (dynamic composition, tests).',
         parameters: [{ name: 'ns', description: 'namespace.' }],
         returns: 'the translate function.',
+      },
+    ],
+  },
+  {
+    key: 'sessionQueries',
+    summary: 'The client session-query service face.',
+    description: 'The client session-query service face.',
+    methods: [
+      {
+        signature: 'listSessions(): Promise<RemoteResult<SessionQueryListValue>>',
+        description: 'List the complete logical corpus, newest first, with live/persisted flags.',
+        parameters: [],
+        returns: 'the records, or the typed/transport failure for a rejection.',
+      },
+      {
+        signature: 'readSession(sessionId: SessionIdLike): Promise<RemoteResult<SessionQueryReadValue>>',
+        description: 'Read and replay-validate one complete logical session log.',
+        parameters: [{ name: 'sessionId', description: 'the session to read.' }],
+        returns: 'the cloned header and complete raw log, or the failure.',
+      },
+      {
+        signature: 'filterEvents(sessionId: SessionIdLike, filters: SessionQueryFilterEventsRequest[\'filters\']): Promise<RemoteResult<SessionQueryFilterEventsValue>>',
+        description: 'Filter one logical session\'s event documents.',
+        parameters: [{ name: 'sessionId', description: 'the session to scan.' }, { name: 'filters', description: 'ANDed metadata and literal-text predicates.' }],
+        returns: 'matching documents, or the failure.',
+      },
+      {
+        signature: 'traceSession(sessionId: SessionIdLike): Promise<RemoteResult<SessionQueryTraceValue>>',
+        description: 'Trace ancestry and descendants for one logical session.',
+        parameters: [{ name: 'sessionId', description: 'the session to trace.' }],
+        returns: 'the lineage, or the failure.',
       },
     ],
   },
@@ -423,6 +479,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         throws: ['{WorkspaceArchiveError} when the Host refuses; without `stopActivity` a Session with running work fails as `workspace/session-active`, its details naming what runs.'],
       },
       {
+        signature: 'fleetHalt(options?: { readonly stopActivity?: boolean }): Promise<readonly SessionId[]>',
+        description: 'Archive every archivable Session across every Workspace this Host serves.',
+        parameters: [{ name: 'options', description: '`stopActivity` asks the Host to stop each Session\'s running work instead of refusing.' }],
+        returns: 'the archived Session identities, in dispatch order; a partial archive reports what was archived.',
+      },
+      {
         signature: 'unarchiveSession(sessionId: SessionId): Promise<void>',
         description: 'Unarchive a Session from the archived Session list.',
         parameters: [{ name: 'sessionId', description: 'Session to unarchive.' }],
@@ -482,6 +544,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'AgentContext',
     declaration: 'export type AgentContext = Omit<Context, \'remote\'> & {\n    readonly remote: ClientRemote & TypertRemoteScopeApi<\'agent\'>;\n};',
+  },
+  {
+    name: 'ApprovalRuleListValue',
+    declaration: 'export type ApprovalRuleListValue = readonly ApprovalRuleView[];',
+  },
+  {
+    name: 'ApprovalRuleRevokeValue',
+    declaration: 'export interface ApprovalRuleRevokeValue {\n    readonly revoked: boolean;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveValue',
+    declaration: 'export interface ApprovalRuleSaveValue {\n    readonly id: ApprovalRuleId;\n}',
   },
   {
     name: 'AssistantLiveChunkEvent',
@@ -874,6 +948,34 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SessionProviderComponent',
     declaration: 'export type SessionProviderComponent = (props: SessionAreaProps) => ReactNode;',
+  },
+  {
+    name: 'SessionQueryFilterEventsRequest',
+    declaration: 'export interface SessionQueryFilterEventsRequest {\n    readonly sessionId: SessionId;\n    readonly filters: readonly SessionEventResultFilter[];\n}',
+  },
+  {
+    name: 'SessionQueryFilterEventsValue',
+    declaration: 'export type SessionQueryFilterEventsValue = readonly SessionEventSearchDocument[];',
+  },
+  {
+    name: 'SessionQueryListValue',
+    declaration: 'export type SessionQueryListValue = readonly import(\'@deepseek-ai/dsh-session-query\').SessionRecord[];',
+  },
+  {
+    name: 'SessionQueryReadValue',
+    declaration: 'export type SessionQueryReadValue = SessionQueryWireLogSnapshot;',
+  },
+  {
+    name: 'SessionQueryTraceValue',
+    declaration: 'export type SessionQueryTraceValue = SessionLineageTrace;',
+  },
+  {
+    name: 'SessionQueryWireEvent',
+    declaration: 'export interface SessionQueryWireEvent {\n    readonly type: string;\n    readonly seq: number;\n    readonly time: number;\n    readonly data: JsonValue;\n    readonly ignorable?: true;\n    readonly sourceEventSeqs?: JsonValue;\n    readonly surfaceOp?: JsonValue;\n}',
+  },
+  {
+    name: 'SessionQueryWireLogSnapshot',
+    declaration: 'export interface SessionQueryWireLogSnapshot {\n    readonly session: import(\'@deepseek-ai/dsh-session\').SessionHeader;\n    readonly inheritedEventCount: number;\n    readonly events: readonly SessionQueryWireEvent[];\n}',
   },
   {
     name: 'SessionReference',

@@ -1,6 +1,7 @@
 /** Workspace command implementation and stable Remote failure mapping. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { Workspace } from '@deepseek-ai/dsh-workspace'
 import {
   WorkspaceActiveSessionError,
@@ -19,6 +20,8 @@ import type {
   WorkspaceCreateValue,
   WorkspaceDeleteRequest,
   WorkspaceDeleteValue,
+  WorkspaceFleetHaltRequest,
+  WorkspaceFleetHaltValue,
   WorkspaceInsertBeforeRequest,
   WorkspaceInsertSessionBeforeRequest,
   WorkspaceOrderValue,
@@ -192,6 +195,50 @@ export class WorkspaceCommands {
   async unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue> {
     await this.ctx.workspaceRegistry.unarchiveSession(request.sessionId)
     return { archivedSessionIds: [...this.ctx.workspaceRegistry.archivedSessionIds] }
+  }
+
+  /**
+   * Halt-all: archive every archivable Session across every Workspace this
+   * Host serves, not only the visible Workspace's. The loop iterates the
+   * per-Workspace Session membership the registry already owns and issues one
+   * marker-carrying `archiveSession` per Session, each stamped with the
+   * targeted Workspace's branded id and the fleet-wide `count`. A per-Session
+   * refusal (missing, active, or a storage fault) is logged and the loop
+   * continues, so a partial archive returns its resolution instead of failing
+   * the whole dispatch; the returned list is exactly the Sessions archived —
+   * never an attempted count. A `stopActivity` archive is idempotent over
+   * already-archived ids and requests the providers stop the session's work.
+   * @param request - whether to stop each Session's running work.
+   * @returns the archived Session identities, in dispatch order.
+   */
+  async fleetHalt(request: WorkspaceFleetHaltRequest = {}): Promise<WorkspaceFleetHaltValue> {
+    const registry = this.ctx.workspaceRegistry
+    return this.enqueue(async () => {
+      const offered: { workspaceId: WorkspaceId; sessionId: SessionId }[] = []
+      for (const workspace of registry.list()) {
+        for (const sessionId of workspace.sessionIds) {
+          if (!registry.archivedSessionIds.includes(sessionId)) {
+            offered.push({ workspaceId: workspace.id, sessionId })
+          }
+        }
+      }
+      const count = offered.length
+      const archivedSessionIds: SessionId[] = []
+      for (const { workspaceId, sessionId } of offered) {
+        try {
+          await registry.archiveSession(sessionId, {
+            stopActivity: request.stopActivity === true,
+            fleet: { workspaceId, count },
+          })
+          archivedSessionIds.push(sessionId)
+        } catch (error) {
+          this.ctx.logger.warn(
+            `workspace: fleet halt skipped session '${sessionId}' in '${workspaceId}': ${errorMessage(error)}`,
+          )
+        }
+      }
+      return { archivedSessionIds }
+    })
   }
 
   /**

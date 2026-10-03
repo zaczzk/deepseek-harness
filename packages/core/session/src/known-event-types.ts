@@ -48,6 +48,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'model/selection',
   'permission/preset',
   'plan/mode',
+  'project/milestone',
   'request/context',
   'request/header',
   'sandbox/mode',
@@ -80,6 +81,7 @@ export const KNOWN_SESSION_EVENT_TYPES: ReadonlySet<string> = new Set([
   'user/message',
   'web/deepseek-search-llm-request',
   'workspace/changes',
+  'workspace/halt',
 ])
 
 /** Event types whose model-visible effects require an explicit pure interpreter. */

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import { LocaleRuntime } from '@deepseek-ai/dsh-client-locale/client'
 import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client'
-import { TestRemote } from '@deepseek-ai/dsh-client-test-runtime'
+import { TestRemote, TestSessions } from '@deepseek-ai/dsh-client-test-runtime'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { DecisionsView } from '../src/client/DecisionsView.tsx'
 import { createRegisterStore } from '../src/client/store.ts'
@@ -26,14 +26,16 @@ async function bench() {
     value: { version: 'v1', data: new TextEncoder().encode('# Decisions\n') },
   }))
   new TestRemote(ctx, { workspaceFiles: { readBytes } })
+  const sessions = new TestSessions(async (action) => { await action() }, ctx)
+  ctx.provide('sessions', sessions)
   const fiber = ctx.plugin({ inject: [...inject], apply })
   await fiber.await()
-  return { ctx, slots, locale, readBytes, fiber }
+  return { ctx, slots, locale, readBytes, sessions, fiber }
 }
 
 describe('ui-decisions apply', () => {
   it('declares the services it binds', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.workspaceFiles'])
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.workspaceFiles', 'sessions'])
   })
 
   it('registers the decisions view tab with its label, store, and face', async () => {
@@ -52,7 +54,7 @@ describe('ui-decisions apply', () => {
     expect(store.create('session-x').getSnapshot()).toEqual({ doc: { status: 'idle' } })
     const injectFace = entry.inject as (sessionId: string, actions: unknown) => Record<string, unknown>
     const face = injectFace(SESSION_ID, {})
-    expect(face).toEqual({ loadRegister: expect.any(Function) })
+    expect(face).toEqual({ loadRegister: expect.any(Function), retryCost: expect.any(Function) })
 
     await b.fiber.dispose()
 
@@ -73,6 +75,22 @@ describe('ui-decisions apply', () => {
       expect(b.readBytes).toHaveBeenCalledWith(SESSION_ID, 'DECISIONS.md', {}, undefined)
     })
     await vi.waitFor(() => { expect(instance.getSnapshot().doc.status).toBe('ready') })
+
+    await b.fiber.dispose()
+  })
+
+  it('re-issues the Session projections read through the injected Retry', async () => {
+    const b = await bench()
+    const entry = b.slots.entries('conversation.view')[0]!
+    const injectFace = entry.inject as (sessionId: string, actions: unknown) => Record<string, unknown>
+    const face = injectFace(SESSION_ID, {})
+    const retryCost = face.retryCost as () => void
+
+    retryCost()
+
+    await vi.waitFor(() => {
+      expect(b.sessions.calls).toContainEqual({ method: 'refreshProjections', args: [SESSION_ID] })
+    })
 
     await b.fiber.dispose()
   })

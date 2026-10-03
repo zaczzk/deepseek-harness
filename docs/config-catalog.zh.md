@@ -180,6 +180,22 @@ Depends on: [`ToolPresentationMode`](subsystems/tools.zh.md)
 
 来源： [`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/core/agent-tool-presentation/src/index.ts)
 
+<a id="deepseek-aidsh-api-approval-rules"></a>
+
+## `@deepseek-ai/dsh-api-approval-rules`
+
+需要： `approvalRules` · `typert`
+
+```ts config-catalog
+/** Approval Rules Controller deployment policy. */
+export interface Config {
+  /** Reserved for deployment-tunable rule-management bounds; no field is shipped. */
+  readonly _?: never
+}
+```
+
+来源： [`packages/api/approval-rules/src/index.ts:37`](../packages/api/approval-rules/src/index.ts)
+
 <a id="deepseek-aidsh-api-gateway"></a>
 
 ## `@deepseek-ai/dsh-api-gateway`
@@ -231,6 +247,22 @@ export interface Config {
 ```
 
 来源： [`packages/api/session-controller/src/index.ts:79`](../packages/api/session-controller/src/index.ts)
+
+<a id="deepseek-aidsh-api-session-query-controller"></a>
+
+## `@deepseek-ai/dsh-api-session-query-controller`
+
+需要： `sessionQuery` · `typert`
+
+```ts config-catalog
+/** Session Query Controller deployment policy. */
+export interface Config {
+  /** Reserved for deployment-tunable read bounds; no field is shipped. */
+  readonly _?: never
+}
+```
+
+来源： [`packages/api/session-query-controller/src/index.ts:41`](../packages/api/session-query-controller/src/index.ts)
 
 <a id="deepseek-aidsh-api-settings-controller"></a>
 
@@ -337,6 +369,32 @@ export interface Config {
 
 来源： [`packages/api/workspace-files/src/index.ts:70`](../packages/api/workspace-files/src/index.ts)
 
+<a id="deepseek-aidsh-artifact-store"></a>
+
+## `@deepseek-ai/dsh-artifact-store`
+
+需要： `storageDomain`
+
+```ts config-catalog
+/** Validated retention bounds. Absent fields leave the corresponding pass disabled. */
+export interface Config {
+  /**
+   * Per-workspace cap on stored artifact bytes. When a write passes the
+   * workspace's stored total past it, the oldest-turn-first captures of that
+   * workspace are evicted until the total is back at or under the cap. Absent
+   * means no cap — captures live until `retentionDays` prunes them.
+   */
+  maxStoreBytes?: number
+  /**
+   * Age in days after which a capture is pruned, applied on every write and
+   * once at activation. Absent means no age pruning.
+   */
+  retentionDays?: number
+}
+```
+
+来源： [`packages/storage/artifact-store/src/index.ts:31`](../packages/storage/artifact-store/src/index.ts)
+
 <a id="deepseek-aidsh-attachment-local"></a>
 
 ## `@deepseek-ai/dsh-attachment-local`
@@ -420,6 +478,31 @@ export type Config = LocalConfig
 Depends on: [`LocalConfig`](#deepseek-aidsh-bash-local)
 
 来源： [`packages/shell/bash-sandbox/src/index.ts:36`](../packages/shell/bash-sandbox/src/index.ts)
+
+<a id="deepseek-aidsh-budget-ceiling"></a>
+
+## `@deepseek-ai/dsh-budget-ceiling`
+
+需要： `tools`
+
+```ts config-catalog
+/**
+ * Validated per-Session consumption ceiling expressed as a flat token count.
+ * Absent means no ceiling — the guard returns `undefined` for every call, and
+ * the package ships in `bundle/base`, so optional-without-default keeps a
+ * headless deployment that never asked for a ceiling from failing to boot.
+ *
+ * The ceiling counts consumed provider usage tokens (the four non-reasoning
+ * buckets plus reasoning), the same accounting `token-meter` reports but made
+ * the sole figure a decision is taken from.
+ */
+export interface Config {
+  /** Reject a tool call once its Session's consumed usage tokens reach this count. */
+  budgetCeiling?: number
+}
+```
+
+来源： [`packages/guard/budget-ceiling/src/index.ts:39`](../packages/guard/budget-ceiling/src/index.ts)
 
 <a id="deepseek-aidsh-client-connection"></a>
 
@@ -580,6 +663,11 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` registers the
+   * command with its result reporting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 ```
 
@@ -739,6 +827,11 @@ export interface Config {
    * against the process working directory at plugin load.
    */
   readonly enhanceFile: string
+  /**
+   * Missing-file policy: `fail` aborts plugin load; `disable` mounts the
+   * service with previews rejecting until the rubric exists.
+   */
+  readonly onMissing: 'fail' | 'disable'
 }
 ```
 
@@ -1392,7 +1485,7 @@ export interface Config {
 ```ts config-catalog
 /** Token-plan usage reader configuration. */
 export interface Config {
-  /** Console origin serving the Token Plan usage endpoint. */
+  /** Console origin serving the Token Plan endpoints. */
   readonly origin: Volatile<string>
   /** Stored console session cookie value; empty keeps the reader idle. */
   readonly session: Volatile<string>
@@ -1400,7 +1493,7 @@ export interface Config {
   readonly sessionEnv: Volatile<string>
   /** Interval between usage polls, in milliseconds. */
   readonly pollIntervalMs: Volatile<number>
-  /** Per-request deadline for one usage poll, in milliseconds. */
+  /** Per-request deadline for one poll, in milliseconds. */
   readonly timeoutMs: Volatile<number>
 }
 ```
@@ -3705,6 +3798,14 @@ export interface Config {
    */
   agentOptions?: AgentOptions
   /**
+   * Working directory every child session starts in. Requires the provider's
+   * `cwd` capability; omission inherits the delegating parent session's cwd.
+   * Absolute or, like the provider backends' own configured cwd, interpreted
+   * against the harness launch directory and validated as an enterable
+   * directory at load.
+   */
+  cwd?: string
+  /**
    * Per-child persona that shadows `deployment:persona-prefix`. Requires the
    * provider's `persona` capability; omission preserves the deployment persona.
    */
@@ -4176,6 +4277,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-resources`（[`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-approval-rules`（[`packages/client/ui-approval-rules/src/index.ts`](../packages/client/ui-approval-rules/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-architecture`（[`packages/client/ui-architecture/src/index.ts`](../packages/client/ui-architecture/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
@@ -4193,6 +4295,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-jobs`（[`packages/client/ui-jobs/src/index.ts`](../packages/client/ui-jobs/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-layout`（[`packages/client/ui-layout/src/index.ts`](../packages/client/ui-layout/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-message-feedback`（[`packages/client/ui-message-feedback/src/index.ts`](../packages/client/ui-message-feedback/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-milestone`（[`packages/client/ui-milestone/src/index.ts`](../packages/client/ui-milestone/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-model-selection`（[`packages/client/ui-model-selection/src/index.ts`](../packages/client/ui-model-selection/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-open-in-app`（[`packages/client/ui-open-in-app/src/index.ts`](../packages/client/ui-open-in-app/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-permission-presets`（[`packages/client/ui-permission-presets/src/index.ts`](../packages/client/ui-permission-presets/src/index.ts)）
@@ -4200,6 +4303,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-plugin-manager`（[`packages/client/ui-plugin-manager/src/index.ts`](../packages/client/ui-plugin-manager/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-reference`（[`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-renderer`（[`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-run-comparison`（[`packages/client/ui-run-comparison/src/index.ts`](../packages/client/ui-run-comparison/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-schedule`（[`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-session`（[`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings`（[`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts)）
@@ -4231,6 +4335,7 @@ export interface Config {
 - `@deepseek-ai/dsh-computer-use`（[`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts)）
 - `@deepseek-ai/dsh-config-editor` — requires `loader` · `profileContext`（[`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts)）
 - `@deepseek-ai/dsh-cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
+- `@deepseek-ai/dsh-decision-cost` — 需要 `sessionProjections`（[`packages/session/decision-cost/src/index.ts`](../packages/session/decision-cost/src/index.ts)）
 - `@deepseek-ai/dsh-deepseek-llm-api-extensions`（[`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-auto-review` — 需要 `llm` · `permissionPresets` · `sessions` · `tools`（[`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）

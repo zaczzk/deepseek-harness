@@ -49,7 +49,10 @@ export interface RegisterRow {
 }
 
 /** Diagram state shown live against the latest milestone record. */
-export type DiagramFreshness = 'current' | 'stale' | 'absent'
+export type DiagramFreshness = 'current' | 'changed' | 'stale' | 'absent'
+
+/** Number of cells one register table line carries. */
+const REGISTER_COLUMNS = 6
 
 const REGISTER_HEADER = '| ID | Date | Kind | Title | Status | Diagram |'
 const REGISTER_SEPARATOR = '|----|------|------|-------|--------|---------|'
@@ -68,10 +71,22 @@ function cells(line: string): string[] | undefined {
   return trimmed.slice(1, -1).split('|').map(cell => cell.trim())
 }
 
-/** The exactly-six trimmed cells of one register table line, or undefined for any other line. */
+/**
+ * The register's own leading cells of one table line, or undefined for any
+ * other line.
+ *
+ * The six columns are the register's own; a line carrying further cells is a
+ * project that appended columns of its own, and its leading cells still name
+ * the row. Rejecting such a line instead would empty the whole tab, and
+ * {@link appendRegisterRow} would find no row to anchor to and append a second
+ * table beside the first.
+ * @param line - one Markdown line.
+ * @returns the first six trimmed cells, or undefined when the line is not a
+ * table row or holds fewer than six cells.
+ */
 function rowCells(line: string): readonly [string, string, string, string, string, string] | undefined {
   const parts = cells(line)
-  return parts === undefined || parts.length !== 6
+  return parts === undefined || parts.length < REGISTER_COLUMNS
     ? undefined
     : parts as [string, string, string, string, string, string]
 }
@@ -129,10 +144,18 @@ export function formatRegisterRow(row: RegisterRow): string {
   return `| ${row.id} | ${row.date} | ${row.kind} | ${title} | ${row.status} | ${diagram} |`
 }
 
-/** Whether one table line is the register's separator row. */
+/**
+ * Whether one table line is the register's separator row. Every cell is a
+ * dashed run, so a table the project widened still recognises its own
+ * separator.
+ * @param line - one Markdown line.
+ * @returns true for a separator row of the register or of a widened register.
+ */
 function isSeparator(line: string): boolean {
   const parts = cells(line)
-  return parts !== undefined && parts.length === 6 && parts.every(part => /^:?-{3,}:?$/.test(part))
+  return parts !== undefined
+    && parts.length >= REGISTER_COLUMNS
+    && parts.every(part => /^:?-{3,}:?$/.test(part))
 }
 
 /**
@@ -240,16 +263,24 @@ export function diagramFingerprint(source: string): string {
 
 /**
  * The diagram state to show now, derived from the current diagram source and
- * the latest milestone's recorded evidence. A recorded `stale` clears as soon
- * as the diagram source differs from the fingerprint it recorded.
+ * the latest milestone's recorded evidence.
+ *
+ * A milestone recorded a fingerprint, so the diagram changed after it exactly
+ * when the current source no longer matches it. A recorded `stale` therefore
+ * clears once the source moves, and a recorded `updated` stops claiming to be
+ * current the moment an edit lands. Evidence recorded without a fingerprint
+ * carries no baseline to compare, so it keeps its recorded verdict.
  * @param source - the current diagram source, or undefined when absent.
  * @param mark - the latest milestone's diagram evidence, when one exists.
- * @returns `absent` without a diagram, `stale` for an unchanged diagram a milestone recorded as stale, otherwise `current`.
+ * @returns `absent` without a diagram, `changed` when the source differs from a
+ * recorded fingerprint, `stale` for unchanged evidence a milestone recorded as
+ * stale, otherwise `current`.
  */
 export function diagramFreshness(source: string | undefined, mark: DiagramMark | undefined): DiagramFreshness {
   if (source === undefined) return 'absent'
-  if (mark?.flag !== 'stale') return 'current'
-  return mark.fingerprint !== null && mark.fingerprint !== diagramFingerprint(source) ? 'current' : 'stale'
+  const recorded = mark?.fingerprint
+  if (recorded !== undefined && recorded !== null && recorded !== diagramFingerprint(source)) return 'changed'
+  return mark?.flag === 'stale' ? 'stale' : 'current'
 }
 
 /** One complete-file text read's outcome. */

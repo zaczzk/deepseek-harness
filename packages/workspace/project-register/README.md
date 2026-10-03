@@ -74,7 +74,7 @@ Milestone recognition is pure and runs synchronously in the event listeners. Eac
 <a id="model-experience"></a>
 ## Model Experience
 
-None, as this package registers no tool, contributes no prompt section, and appends no session event; it only appends rows to the workspace `DECISIONS.md`.
+None, as this package registers no tool and contributes no prompt section; it appends rows to the workspace `DECISIONS.md` and, once a row commits, appends the ignorable, log-only `project/milestone` session event — never part of model history.
 
 #### KV Cache effect
 

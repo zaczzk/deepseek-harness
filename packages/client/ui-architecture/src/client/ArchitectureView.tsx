@@ -3,7 +3,8 @@
  * the reason it is not showing. Metadata arrives through the standard
  * `useResource` hook; document text and the rendered SVG are the store's, so a
  * body coming back to its tab re-renders nothing until a document changes.
- * Status is carried by the strip's chip; a stale diagram earns one action line.
+ * Status is carried by the strip's chip; a stale or changed diagram earns one
+ * action line.
  */
 import { useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
@@ -14,7 +15,7 @@ import type { InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepsee
 import type {} from '@deepseek-ai/dsh-api-workspace-files/client'
 import type {} from '@deepseek-ai/dsh-client-resources/client'
 import {
-  ARCHITECTURE_FILE,
+  ARCHITECTURE_FILE, REGISTER_FILE,
   diagramFreshness, diagramSource, latestMilestone, parseRegister,
 } from '@deepseek-ai/dsh-util-project-register'
 import { sessionFileAddress } from '@deepseek-ai/dsh-util-workspace-path'
@@ -38,7 +39,7 @@ export function ArchitectureView({
   sessionId, useResource, useStore, loadArchitecture, loadRegister, renderDiagram, t,
 }: ArchitectureViewProps): ReactNode {
   const meta = useResource<'file'>(sessionFileAddress(sessionId, ARCHITECTURE_FILE))
-  const registerMeta = useResource<'file'>(sessionFileAddress(sessionId, 'DECISIONS.md'))
+  const registerMeta = useResource<'file'>(sessionFileAddress(sessionId, REGISTER_FILE))
   const architecture = useStore(state => state.architecture)
   const register = useStore(state => state.register)
   const render = useStore(state => state.render)
@@ -73,7 +74,16 @@ export function ArchitectureView({
     if (render.status === 'ready' && render.svg !== undefined) {
       return <div className={css.svg} data-architecture-svg dangerouslySetInnerHTML={{ __html: render.svg }} />
     }
-    if (render.status === 'failed') return <p className={css.status} data-architecture-state="render-failed">{t('render.failed')}</p>
+    if (render.status === 'failed') {
+      return (
+        <p className={css.status} data-architecture-state="render-failed">
+          <span>{t('render.failed')}</span>
+          {render.error !== undefined && render.error !== '' && (
+            <code className={css.detail} data-architecture-render-error>{render.error}</code>
+          )}
+        </p>
+      )
+    }
     if (architecture.status === 'failed') {
       if (architecture.failureCode === 'workspace-file/not-found') {
         return <p className={css.status} data-architecture-state="missing">{t('error.missing')}</p>
@@ -108,6 +118,7 @@ export function ArchitectureView({
         </span>
       </div>
       {freshness === 'stale' && <p className={css.alert} data-architecture-stale-alert>{t('diagram.stale.action')}</p>}
+      {freshness === 'changed' && <p className={css.alert} data-architecture-changed-alert>{t('diagram.changed.action')}</p>}
       <div className={css.canvas}>{canvas()}</div>
     </div>
   )

@@ -7,10 +7,12 @@
 import { relative } from 'node:path'
 import z from '@deepseek-ai/schemastery'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { REGISTER_FILE } from '@deepseek-ai/dsh-util-project-register'
 
 const DEFAULT_PROJECT_ROOT_MARKERS = ['.git'] as const
 const DEFAULT_INSTRUCTION_FILE_CANDIDATES = ['AGENTS.md', 'CLAUDE.md'] as const
 const DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES = ['AGENTS.local.md', 'CLAUDE.local.md'] as const
+const DEFAULT_REGISTER_FILE_CANDIDATES = [REGISTER_FILE] as const
 const DEFAULT_MAX_SOURCE_BYTES = 1_048_576
 const RESERVED_PATH_SEGMENTS = new Set(['', '.', '..'])
 
@@ -34,6 +36,12 @@ export interface Config {
    * under the same per-directory trimmed-content dedup; empty disables the overlay.
    */
   localInstructionFileCandidates?: string[]
+  /**
+   * Ordered project-root decision-register file names parsed into ranked
+   * register guidance; every existing candidate with well-formed rows loads,
+   * and normally only `DECISIONS.md` (the shipped register file) is set.
+   */
+  registerFileCandidates?: string[]
 }
 
 export const Config: z<Config> = z.object({
@@ -43,6 +51,7 @@ export const Config: z<Config> = z.object({
   maxSourceBytes: z.number().step(1).min(1).default(DEFAULT_MAX_SOURCE_BYTES),
   instructionFileCandidates: z.array(z.string()).default([...DEFAULT_INSTRUCTION_FILE_CANDIDATES]),
   localInstructionFileCandidates: z.array(z.string()).default([...DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES]),
+  registerFileCandidates: z.array(z.string()).default([...DEFAULT_REGISTER_FILE_CANDIDATES]),
 })
 
 /** Normalized instruction discovery configuration. */
@@ -51,6 +60,7 @@ export interface ResolvedDiscoveryConfig {
   projectRootMarkers: string[]
   instructionFileCandidates: string[]
   localInstructionFileCandidates: string[]
+  registerFileCandidates: string[]
 }
 
 /** Normalized configuration used by discovery and reconciliation. */
@@ -78,6 +88,7 @@ export function workspaceBaselineIdentity(
     maxSourceBytes: config.maxSourceBytes,
     instructionFileCandidates: config.instructionFileCandidates,
     localInstructionFileCandidates: config.localInstructionFileCandidates,
+    registerFileCandidates: config.registerFileCandidates,
   })
 }
 
@@ -100,7 +111,7 @@ export function resolveConfig(config: Config): ResolvedConfig {
  * @returns normalized home, root markers, and instruction candidates.
  */
 export function resolveDiscoveryConfig(
-  config: Pick<Config, 'dshHome' | 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates'>,
+  config: Pick<Config, 'dshHome' | 'projectRootMarkers' | 'instructionFileCandidates' | 'localInstructionFileCandidates' | 'registerFileCandidates'>,
 ): ResolvedDiscoveryConfig {
   return {
     dshHome: resolveDshHome(config.dshHome),
@@ -112,6 +123,10 @@ export function resolveDiscoveryConfig(
     localInstructionFileCandidates: resolveInstructionFileCandidates(
       config.localInstructionFileCandidates,
       DEFAULT_LOCAL_INSTRUCTION_FILE_CANDIDATES,
+    ),
+    registerFileCandidates: resolveInstructionFileCandidates(
+      config.registerFileCandidates,
+      DEFAULT_REGISTER_FILE_CANDIDATES,
     ),
   }
 }

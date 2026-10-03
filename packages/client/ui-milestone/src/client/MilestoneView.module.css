@@ -1,0 +1,49 @@
+/** Module-styled row for the milestone transcript node. */
+
+.view {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  box-sizing: border-box;
+}
+
+.title {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.mark[data-milestone-mark='updated'] {
+  background: var(--dsw-alias-state-success-subtle);
+  color: var(--dsw-alias-state-success-primary);
+}
+
+.mark[data-milestone-mark='stale'] {
+  background: var(--dsw-alias-state-warning-subtle);
+  color: var(--dsw-alias-state-warning-primary);
+}
+
+.mark[data-milestone-mark='absent'] {
+  background: var(--dsw-alias-state-error-subtle);
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.mark[data-milestone-mark='none'] {
+  background: var(--dsw-alias-fill-subtle);
+  color: var(--dsw-alias-label-secondary);
+}

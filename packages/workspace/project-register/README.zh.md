@@ -74,7 +74,7 @@ kind: "package-reference"
 <a id="model-experience"></a>
 ## 模型体验
 
-无：本包不注册工具、不贡献提示词区段、不追加会话事件；它只向工作区的 `DECISIONS.md` 追加行。
+无：本包不注册工具、不贡献提示词区段；它向工作区的 `DECISIONS.md` 追加行，并在行提交后追加一条可忽略、仅日志的 `project/milestone` 会话事件——绝不进入模型历史。
 
 #### KV 缓存影响
 

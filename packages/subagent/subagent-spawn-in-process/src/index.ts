@@ -41,6 +41,7 @@ export const Config: z<Config> = z.object({
 class SpawnInProcessProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = {
     agentOptions: true,
+    cwd: true,
     outputSchema: true,
     depthLimit: true,
     toolFilter: true,

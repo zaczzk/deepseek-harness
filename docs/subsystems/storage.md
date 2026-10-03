@@ -160,6 +160,26 @@ type DomainChanged = DomainChangedPut | DomainChangedDeleted
 
 Generated from source by `scripts/gen-cordis-catalog.ts` (verified fresh by `pnpm run verify-cordis-catalog` in doc-sync; regenerate with `pnpm run gen-cordis-catalog`) — the language sides differ only in locale-specific paired document paths. Signature blocks use a `ts cordis-catalog` fence and keep the original source JSDoc; dispatch modes are defined in the [primer](../cordis-primer.md#dispatch-modes), and the framework-inherited `ctx` API lives in [cordis-api/inherited.md](../cordis-api/inherited.md).
 
+<a id="ctxartifactstore--artifactstore"></a>
+
+### `ctx.artifactStore` — `ArtifactStore`
+
+The artifact store service: `ctx.artifactStore`. Opens the `artifact_files` domain over the injected storage-domain facility and exposes the durable whole-file capture writes the workspace-changes recorder promotes, scoped by workspace. Reads and writes go through the single opened table; retention and eviction run on the write path and once at activation.
+
+```ts cordis-catalog
+/**
+ * Promote one captured file side into the durable store, then apply the
+ * retention bounds: age-prune, then per-workspace cap eviction oldest turn
+ * first. `bytes` and `sha1` are caller-provided figures the store does not
+ * recompute.
+ * @param record - the durable artifact fields to store.
+ * @returns the branded id of the stored artifact.
+ */
+async store(record: ArtifactRecord): Promise<ArtifactId>
+```
+
+Source: [`packages/storage/artifact-store/src/index.ts`](../../packages/storage/artifact-store/src/index.ts)
+
 <a id="ctxstorage--storage"></a>
 
 ### `ctx.storage` — `Storage`

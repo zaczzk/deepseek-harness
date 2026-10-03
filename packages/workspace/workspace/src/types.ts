@@ -22,6 +22,25 @@ declare module '@deepseek-ai/dsh-typert-protocol' {
   }
 }
 
+declare module '@deepseek-ai/dsh-session/types' {
+  interface SessionEventMap {
+    /**
+     * One Session was archived as an iteration of a fleet halt, recording the
+     * branded id of the Workspace whose iteration issued the `archiveSession`
+     * call and the fleet-wide count. Log-only: it exists so a halted Session's
+     * own log records why it stopped, and it never joins the model-visible
+     * surface. Required-on-read by default, so an older build that does not
+     * know it refuses the log unless the envelope carries `ignorable: true`.
+     */
+    'workspace/halt': {
+      /** The branded id of the Workspace this dispatch iteration targeted. */
+      readonly workspaceId: WorkspaceId
+      /** The fleet-wide size carried on the `archiveSession` marker. */
+      readonly count: number
+    }
+  }
+}
+
 /**
  * Activity families a `workspace/session-activity` listener may report. This
  * package declares none: each provider merges its own key from a module both

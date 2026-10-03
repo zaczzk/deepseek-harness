@@ -38,6 +38,8 @@ interface HarnessOptions {
   liveSessions?: SessionHeader[]
   sessionStore?: boolean
   backend?: StorageBackend
+  /** `sessionPersistence.open` implementation; defaults to a thrower so event bodies are never opened unintentionally. */
+  open?: (id: SessionId, access: 'read' | 'write') => Promise<unknown>
 }
 
 /** Boot the real storage/domain/registry composition over controllable header-only peers. */
@@ -53,7 +55,10 @@ async function harness(options: HarnessOptions = {}) {
   let listed = options.sessions ?? []
   const list = vi.fn(async (): Promise<SessionPersistenceSnapshot[]> =>
     listed.map(header => ({ header, revision: SessionPersistenceRevision(`rev-${header.id}`) })))
-  const open = vi.fn(() => { throw new Error('event bodies must not be opened') })
+  const open = vi.fn((id: SessionId, access: 'read' | 'write') => {
+    if (options.open !== undefined) return options.open(id, access)
+    throw new Error('event bodies must not be opened')
+  })
   const stat = vi.fn(() => { throw new Error('per-session stat must not be needed') })
   ctx.provide('sessionPersistence', { list, open, stat } as never)
 
@@ -1017,6 +1022,61 @@ describe('registry-global session archive', () => {
     await expect(result.registry.archiveSession(SessionId('ghost'), { stopActivity: true }))
       .rejects.toThrow(/cannot archive session 'ghost'/)
     expect(order).toEqual([])
+  })
+
+  it('with a fleet marker, appends the workspace/halt event to the archived session after the archive commits', async () => {
+    const dir = await makeDir('archive-fleet')
+    const appended: unknown[] = []
+    const open = async () => ({
+      read: async () => ({ events: [{ seq: 1 }, { seq: 2 }, { seq: 3 }] }),
+      append: async (events: unknown[]) => { appended.push(...events) },
+      flush: async () => {},
+      close: async () => {},
+    })
+    const result = await harness({ sessions: [header('halted', dir, 100)], open })
+    const wid = WorkspaceId('workspace-uuid-1')
+
+    await result.registry.archiveSession(SessionId('halted'), {
+      stopActivity: true,
+      fleet: { workspaceId: wid, count: 7 },
+    })
+
+    expect(result.registry.archivedSessionIds).toEqual(['halted'])
+    expect(result.open).toHaveBeenCalledWith(SessionId('halted'), 'write')
+    expect(appended).toHaveLength(1)
+    const event = appended[0] as Record<string, unknown>
+    expect(event.type).toBe('workspace/halt')
+    expect(event.seq).toBe(3)
+    expect(event.ignorable).toBe(true)
+    expect(event.data).toEqual({ workspaceId: wid, count: 7 })
+  })
+
+  it('does not open or append an event for a row-path archive with no fleet marker', async () => {
+    const dir = await makeDir('archive-row')
+    const open = vi.fn(async () => {
+      throw new Error('row archive must not open a session handle')
+    })
+    const result = await harness({ sessions: [header('row', dir, 100)], open })
+
+    await result.registry.archiveSession(SessionId('row'))
+    expect(result.registry.archivedSessionIds).toEqual(['row'])
+    expect(open).not.toHaveBeenCalled()
+  })
+
+  it('logs and resolves when the fleet-halt event append fails, never failing the committed archive', async () => {
+    const dir = await makeDir('archive-fleet-fail')
+    const open = vi.fn(async () => { throw new Error('persistence exploded') })
+    const result = await harness({ sessions: [header('failed', dir, 100)], open })
+    const warn = vi.spyOn(result.ctx.logger, 'warn').mockImplementation(() => {})
+
+    await result.registry.archiveSession(SessionId('failed'), {
+      stopActivity: true,
+      fleet: { workspaceId: WorkspaceId('workspace-uuid-2'), count: 2 },
+    })
+
+    expect(result.registry.archivedSessionIds).toEqual(['failed'])
+    expect(storedState(result.pool).archivedSessionIds).toEqual(['failed'])
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('was not appended'))
   })
 
   it('asks about activity only after the session is known, and archives when every listener delegates', async () => {

@@ -42,6 +42,7 @@ export type {
 } from './files.ts'
 export { renderAgentInstructions } from './render.ts'
 export type { RenderedAgentInstructions, TruncatedInstruction } from './render.ts'
+export { renderRegisterGuidance, REGISTER_GUIDANCE_DISPLAY } from './register.ts'
 
 function visibleBaselineSource(
   agent: Agent,

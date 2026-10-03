@@ -83,6 +83,12 @@
     - id: session-stats
       name: '@deepseek-ai/dsh-session-stats'
 
+    # Per-milestone derived costs for the workspace DECISIONS.md register (the
+    # milestoneCost projection key): the decision register's Cost cell reads a
+    # figure per milestone row over the same projection carriers.
+    - id: decision-cost
+      name: '@deepseek-ai/dsh-decision-cost'
+
     # Whole-log turn outline for the chat turn rail (the turnOutline
     # projection key): every turn stays navigable before its events page in.
     - id: session-turn-outline
@@ -106,6 +112,12 @@
     # the roster rides the session control stream above.
     - id: job-controller
       name: '@deepseek-ai/dsh-api-job-controller'
+    # Session query reads, replays, filters, and traces over Typert Remote.
+    - id: session-query-controller
+      name: '@deepseek-ai/dsh-api-session-query-controller'
+    # Remembered approval-rule management (list, save, revoke) over Typert Remote.
+    - id: approval-rules
+      name: '@deepseek-ai/dsh-api-approval-rules'
     # Workspace file service: bounded read, directory listing, and the
     # agent-write change feed inside the session workspace root.
     - id: terminal-controller
@@ -286,6 +298,9 @@
     - id: ui-approval
       name: '@deepseek-ai/dsh-client-ui-approval'
 
+    - id: ui-approval-rules
+      name: '@deepseek-ai/dsh-client-ui-approval-rules'
+
     - id: ui-chat
       name: '@deepseek-ai/dsh-client-ui-chat'
 
@@ -313,6 +328,12 @@
     # snapshots; the changed-files card above renders its events.
     - id: workspace-changes
       name: '@deepseek-ai/dsh-workspace-changes'
+
+    # Durable whole-file artifact store: promotes workspace-changes' SHA-1
+    # per-turn captures into a storage-domain-backed store with per-workspace
+    # oldest-turn-first eviction and age-based pruning.
+    - id: artifact-store
+      name: '@deepseek-ai/dsh-artifact-store'
 
     # Milestone enforcement: records every major milestone (completed goal,
     # completed milestone-tagged todo) as a DECISIONS.md register row carrying
@@ -421,6 +442,14 @@
 
     - id: ui-decisions
       name: '@deepseek-ai/dsh-client-ui-decisions'
+    - id: ui-run-comparison
+      name: '@deepseek-ai/dsh-client-ui-run-comparison'
+
+    # Milestone in the transcript: the keyed project/milestone node renders one
+    # committed DECISIONS.md milestone row (M<n>, title, diagram mark) per
+    # session event in the conversation.
+    - id: ui-milestone
+      name: '@deepseek-ai/dsh-client-ui-milestone'
     # Token usage: the Session-header meter over the token-meter projections.
     # Two halves: the host polls the provider's Token Plan report (console
     # session cookie via `session`/`sessionEnv`) and serves it at

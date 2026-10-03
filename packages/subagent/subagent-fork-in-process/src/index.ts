@@ -63,6 +63,7 @@ function completedTurnPrefix(parent: Agent): SessionEvent[] {
 class ForkInProcessProvider implements SubagentProvider {
   readonly capabilities: SubagentCapabilities = {
     agentOptions: true,
+    cwd: true,
     outputSchema: true,
     depthLimit: true,
     toolFilter: true,

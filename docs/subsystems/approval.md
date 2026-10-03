@@ -143,6 +143,81 @@ Types: [Agent](core.md) · [Session](session.md)
 
 Source: [`packages/interaction/user-approval/src/index.ts`](../../packages/interaction/user-approval/src/index.ts)
 
+<a id="ctxapprovalrulecontroller--approvalrulecontroller"></a>
+
+### `ctx.approvalRuleController` — `ApprovalRuleController`
+
+Host service backing the generated `ctx.remote.approvalRuleSets` namespace.
+
+```ts cordis-catalog
+/**
+ * List every current (unexpired) remembered rule, ordered by name. The
+ * roster is a request/response snapshot: a UI re-reads it to refresh after
+ * a write, and no stream state lives on this side.
+ * @param _request - reserved request wrapper (the un-fenced rule list takes no argument).
+ * @returns the unexpired remembered-rule rows, ordered by name.
+ */
+@Remote('list') async list(_request: ApprovalRuleListRequest): Promise<ApprovalRuleListValue>
+
+/**
+ * Save (create or replace) one remembered rule and write-prune any rule now
+ * expired, atomically through the store's single-open domain. The returned
+ * branded id is the rule the row renders and revoke targets.
+ * @param request - the durable rule fields to store.
+ * @returns the branded id of the saved rule.
+ */
+@Remote('save') async save(request: ApprovalRuleSaveRequest): Promise<ApprovalRuleSaveValue>
+
+/**
+ * Revoke one remembered rule by its branded id.
+ * @param request - the branded id of the rule to revoke.
+ * @returns whether a rule with that id existed and was removed.
+ */
+@Remote('revoke') async revoke(request: ApprovalRuleRevokeRequest): Promise<ApprovalRuleRevokeValue>
+```
+
+Source: [`packages/api/approval-rules/src/index.ts`](../../packages/api/approval-rules/src/index.ts)
+
+<a id="ctxapprovalrules--approvalrulestore"></a>
+
+### `ctx.approvalRules` — `ApprovalRuleStore`
+
+The rule store service: `ctx.approvalRules`. Opens the `approval_rules` domain over the injected storage-domain facility and exposes the durable rule CRUD the Remote and the Settings seat share. The answerer path reads the same opened table through ApprovalRuleStore.lookup.
+
+```ts cordis-catalog
+/**
+ * List every current (unexpired) remembered rule. Expired rules are already
+ * pruned on write, so this read is authoritative.
+ * @returns the unexpired rules, newest first.
+ */
+list(): ApprovalRuleView[]
+
+/**
+ * Save (create or replace) one rule and write-prune any rule now expired.
+ * @param record - the durable rule fields to store.
+ * @returns the branded id of the saved rule.
+ */
+async save(record: ApprovalRuleRecord): Promise<ApprovalRuleId>
+
+/**
+ * Revoke one rule by id.
+ * @param id - the branded id of the rule to revoke.
+ * @returns whether a rule with that id existed and was removed.
+ */
+async revoke(id: ApprovalRuleId): Promise<boolean>
+
+/**
+ * The durable rule answering one tool name, if any, evaluating a rule's
+ * `expiresAt` (an expired rule never answers). Tool-name granularity: the
+ * first match by creation order wins.
+ * @param tool - the tool name the request asks about.
+ * @returns the answering rule and its id, or `undefined` when none applies.
+ */
+lookup(tool: string): ApprovalRuleView | undefined
+```
+
+Source: [`packages/interaction/user-approval/src/rules-store.ts`](../../packages/interaction/user-approval/src/rules-store.ts)
+
 <a id="approval-events"></a>
 
 ### `approval/*` events

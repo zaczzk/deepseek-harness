@@ -410,6 +410,75 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'approvalRuleController',
+    summary: 'Host service backing the generated `ctx.remote.approvalRuleSets` namespace.',
+    description: 'Host service backing the generated `ctx.remote.approvalRuleSets` namespace.',
+    methods: [
+      {
+        signature: '@Remote(\'list\') async list(_request: ApprovalRuleListRequest): Promise<ApprovalRuleListValue>',
+        description: 'List every current (unexpired) remembered rule, ordered by name. The roster is a request/response snapshot: a UI re-reads it to refresh after a write, and no stream state lives on this side.',
+        parameters: [{ name: '_request', description: 'reserved request wrapper (the un-fenced rule list takes no argument).' }],
+        returns: 'the unexpired remembered-rule rows, ordered by name.',
+      },
+      {
+        signature: '@Remote(\'save\') async save(request: ApprovalRuleSaveRequest): Promise<ApprovalRuleSaveValue>',
+        description: 'Save (create or replace) one remembered rule and write-prune any rule now expired, atomically through the store\'s single-open domain. The returned branded id is the rule the row renders and revoke targets.',
+        parameters: [{ name: 'request', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule.',
+      },
+      {
+        signature: '@Remote(\'revoke\') async revoke(request: ApprovalRuleRevokeRequest): Promise<ApprovalRuleRevokeValue>',
+        description: 'Revoke one remembered rule by its branded id.',
+        parameters: [{ name: 'request', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed.',
+      },
+    ],
+  },
+  {
+    key: 'approvalRules',
+    summary: 'The rule store service: `ctx.approvalRules`.',
+    description: 'The rule store service: `ctx.approvalRules`. Opens the `approval_rules` domain over the injected storage-domain facility and exposes the durable rule CRUD the Remote and the Settings seat share. The answerer path reads the same opened table through ApprovalRuleStore.lookup.',
+    methods: [
+      {
+        signature: 'list(): ApprovalRuleView[]',
+        description: 'List every current (unexpired) remembered rule. Expired rules are already pruned on write, so this read is authoritative.',
+        parameters: [],
+        returns: 'the unexpired rules, newest first.',
+      },
+      {
+        signature: 'async save(record: ApprovalRuleRecord): Promise<ApprovalRuleId>',
+        description: 'Save (create or replace) one rule and write-prune any rule now expired.',
+        parameters: [{ name: 'record', description: 'the durable rule fields to store.' }],
+        returns: 'the branded id of the saved rule.',
+      },
+      {
+        signature: 'async revoke(id: ApprovalRuleId): Promise<boolean>',
+        description: 'Revoke one rule by id.',
+        parameters: [{ name: 'id', description: 'the branded id of the rule to revoke.' }],
+        returns: 'whether a rule with that id existed and was removed.',
+      },
+      {
+        signature: 'lookup(tool: string): ApprovalRuleView | undefined',
+        description: 'The durable rule answering one tool name, if any, evaluating a rule\'s `expiresAt` (an expired rule never answers). Tool-name granularity: the first match by creation order wins.',
+        parameters: [{ name: 'tool', description: 'the tool name the request asks about.' }],
+        returns: 'the answering rule and its id, or `undefined` when none applies.',
+      },
+    ],
+  },
+  {
+    key: 'artifactStore',
+    summary: 'The artifact store service: `ctx.artifactStore`.',
+    description: 'The artifact store service: `ctx.artifactStore`. Opens the `artifact_files` domain over the injected storage-domain facility and exposes the durable whole-file capture writes the workspace-changes recorder promotes, scoped by workspace. Reads and writes go through the single opened table; retention and eviction run on the write path and once at activation.',
+    methods: [
+      {
+        signature: 'async store(record: ArtifactRecord): Promise<ArtifactId>',
+        description: 'Promote one captured file side into the durable store, then apply the retention bounds: age-prune, then per-workspace cap eviction oldest turn first. `bytes` and `sha1` are caller-provided figures the store does not recompute.',
+        parameters: [{ name: 'record', description: 'the durable artifact fields to store.' }],
+        returns: 'the branded id of the stored artifact.',
+      },
+    ],
+  },
+  {
     key: 'attachments',
     summary: 'Immutable binary attachment service.',
     description: 'Immutable binary attachment service. Implementations validate bytes before publishing a reference.',
@@ -1290,6 +1359,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Kill one background job on a human\'s behalf. The request\'s session is the fenced read\'s caller, so the job must be one that session can see: the registry\'s owner fence is the only access rule, and a child session\'s own jobs are killable from its list like any other. The kill records `cancelled by the user` as its reason; it is not one the model requested, so the owning agent still receives the completion notice, and a shell tool waiting on that job reads the reason in its own result.',
         parameters: [{ name: 'request', description: 'Session whose job list carries the job, and the job id.' }],
         returns: 'the registry\'s admission of the kill request.',
+      },
+      {
+        signature: '@Remote(\'hasRows\') hasRows(request: JobHasRowsRequest): JobHasRowsValue',
+        description: 'Test which of the requested sessions hold at least one visible job row. One caller-argument fence read per listed session — `ctx.jobs.list(sessionId)` returns exactly the jobs that Session can see, so the read never reveals another browser\'s roster. The predicate is row presence only: it answers the Workspace browser\'s Agent-activity filter, which asks whether a Session owns (or can see) any background job, not what those jobs are.',
+        parameters: [{ name: 'request', description: 'the sessions whose visible rosters to test.' }],
+        returns: 'the requested sessions that held at least one row.',
       },
     ],
   },
@@ -2199,6 +2274,37 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Read one full event plus a bounded raw-log context window.',
         parameters: [{ name: 'request', description: 'target session/seq and context sizes.' }, { name: 'signal', description: 'optional cancellation for persisted source resolution.' }],
         returns: 'cloned target and neighboring events.',
+      },
+    ],
+  },
+  {
+    key: 'sessionQueryController',
+    summary: 'Host service backing the generated `ctx.remote.sessionQueries` namespace.',
+    description: 'Host service backing the generated `ctx.remote.sessionQueries` namespace.',
+    methods: [
+      {
+        signature: '@Remote(\'listSessions\') async listSessions(_request: SessionQueryListRequest): Promise<SessionQueryListValue>',
+        description: 'List the complete logical corpus, newest first, with live/persisted flags. The roster is a request/response snapshot: a UI re-reads it to refresh, and no stream state lives on this side.',
+        parameters: [{ name: '_request', description: 'reserved request wrapper (the un-fenced corpus list takes no argument).' }],
+        returns: 'the deterministic newest-first cloned session records.',
+      },
+      {
+        signature: '@Remote(\'readSession\') async readSession(request: SessionQueryReadRequest): Promise<SessionQueryReadValue>',
+        description: 'Read and replay-validate one complete logical session log without making it live. The request\'s session id is the read target; a UI must constrain which sessions its caller may inspect (the query service has no caller authorization). The domain\'s raw log events are projected onto a bounded wire envelope (each event\'s validated JSON data under `data: JsonValue`) before they cross the Remote boundary.',
+        parameters: [{ name: 'request', description: 'live or persisted session id to read.' }],
+        returns: 'the cloned header and complete raw event log from one observation, JSON-bounded.',
+      },
+      {
+        signature: '@Remote(\'filterEvents\') async filterEvents(request: SessionQueryFilterEventsRequest): Promise<SessionQueryFilterEventsValue>',
+        description: 'Filter one logical session\'s first-party event documents with ANDed metadata and literal-text predicates.',
+        parameters: [{ name: 'request', description: 'target session id and the ANDed predicate set.' }],
+        returns: 'matching semantic documents in ascending seq order.',
+      },
+      {
+        signature: '@Remote(\'traceSession\') async traceSession(request: SessionQueryTraceRequest): Promise<SessionQueryTraceValue>',
+        description: 'Trace known ancestry and descendants for one logical session from one corpus observation.',
+        parameters: [{ name: 'request', description: 'logical session id to trace.' }],
+        returns: 'a complete lineage or the first parent that could not be resolved.',
       },
     ],
   },
@@ -3474,6 +3580,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the complete resulting archive set.',
       },
       {
+        signature: '@Remote(\'fleetHalt\') fleetHalt(request: WorkspaceFleetHaltRequest): Promise<WorkspaceFleetHaltValue>',
+        description: 'Halt-all: archive every archivable Session across every Workspace this Host serves. The dispatch loops the per-Workspace Session membership the registry already owns, issues one marker-carrying `archiveSession` per Session, and returns the archived Session identities in dispatch order — a partial archive reports its resolution, never the count offered.',
+        parameters: [{ name: 'request', description: 'whether to stop each Session\'s running work.' }],
+        returns: 'the archived Session identities.',
+      },
+      {
         signature: '@Remote(\'pinSession\') pinSession(request: WorkspacePinSessionRequest): Promise<WorkspacePinValue>',
         description: 'Surface one known unarchived Session ahead of unpinned Sessions.',
         parameters: [{ name: 'request', description: 'Session identity to pin.' }],
@@ -4341,8 +4453,52 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ApprovalRequestEvent {\n    readonly agent: Agent;\n    readonly toolName: string;\n    readonly callId?: ToolCallId;\n    readonly reason?: string;\n    readonly signal?: AbortSignal;\n}',
   },
   {
+    name: 'ApprovalRuleId',
+    declaration: 'export type ApprovalRuleId = Branded<\'ApprovalRuleId\'>;',
+  },
+  {
+    name: 'ApprovalRuleListRequest',
+    declaration: 'export interface ApprovalRuleListRequest {\n    readonly _?: never;\n}',
+  },
+  {
+    name: 'ApprovalRuleListValue',
+    declaration: 'export type ApprovalRuleListValue = readonly ApprovalRuleView[];',
+  },
+  {
+    name: 'ApprovalRuleRecord',
+    declaration: 'export type ApprovalRuleRecord = z.infer<typeof approvalRuleRecord>;',
+  },
+  {
+    name: 'ApprovalRuleRevokeRequest',
+    declaration: 'export interface ApprovalRuleRevokeRequest {\n    readonly id: ApprovalRuleId;\n}',
+  },
+  {
+    name: 'ApprovalRuleRevokeValue',
+    declaration: 'export interface ApprovalRuleRevokeValue {\n    readonly revoked: boolean;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveRequest',
+    declaration: 'export interface ApprovalRuleSaveRequest {\n    readonly record: ApprovalRuleRecord;\n}',
+  },
+  {
+    name: 'ApprovalRuleSaveValue',
+    declaration: 'export interface ApprovalRuleSaveValue {\n    readonly id: ApprovalRuleId;\n}',
+  },
+  {
+    name: 'ApprovalRuleView',
+    declaration: 'export interface ApprovalRuleView {\n    readonly id: ApprovalRuleId;\n    readonly record: ApprovalRuleRecord;\n}',
+  },
+  {
     name: 'ArchiveSessionOptions',
-    declaration: 'export interface ArchiveSessionOptions {\n    readonly stopActivity?: boolean;\n}',
+    declaration: 'export interface ArchiveSessionOptions {\n    readonly stopActivity?: boolean;\n    readonly fleet?: {\n        readonly workspaceId: WorkspaceId;\n        readonly count: number;\n    };\n}',
+  },
+  {
+    name: 'ArtifactId',
+    declaration: 'export type ArtifactId = string & {\n    readonly __brand: \'dsh-artifact-id\';\n};',
+  },
+  {
+    name: 'ArtifactRecord',
+    declaration: 'export type ArtifactRecord = z.infer<typeof artifactRecord>;',
   },
   {
     name: 'AskUserQuestionAnswer',
@@ -4933,6 +5089,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type EnhanceAttemptId = Branded<\'EnhanceAttemptId\'>;',
   },
   {
+    name: 'EnhanceDirection',
+    declaration: 'export type EnhanceDirection = \'enhance\' | \'compact\';',
+  },
+  {
+    name: 'EnhanceGoalDraft',
+    declaration: 'export interface EnhanceGoalDraft {\n    readonly objective: string;\n    readonly completionCriteria: readonly string[];\n}',
+  },
+  {
+    name: 'EnhanceLanguage',
+    declaration: 'export type EnhanceLanguage = \'en\' | \'zh\';',
+  },
+  {
     name: 'EnhancePreviewChunk',
     declaration: 'export interface EnhancePreviewChunk {\n    readonly text: string;\n}',
   },
@@ -4943,6 +5111,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'EnhancePreviewResult',
     declaration: 'export interface EnhancePreviewResult {\n    readonly route: EnhanceRoute;\n    readonly matchedRule: string;\n    readonly depth: string;\n    readonly direction: EnhanceDirection;\n    readonly outputLanguage: EnhanceLanguage;\n    readonly sections: EnhanceSections;\n    readonly text: string;\n}',
+  },
+  {
+    name: 'EnhanceRoute',
+    declaration: 'export type EnhanceRoute = \'skip\' | \'enhance\' | \'split\' | \'fold\';',
+  },
+  {
+    name: 'EnhanceSections',
+    declaration: 'export interface EnhanceSections {\n    readonly objective: string;\n    readonly context?: string;\n    readonly constraints?: readonly string[];\n    readonly acceptance: readonly string[];\n    readonly verification?: readonly string[];\n    readonly doneLooksLike?: readonly string[];\n    readonly goal?: EnhanceGoalDraft;\n    readonly todos?: readonly string[];\n}',
   },
   {
     name: 'EpochHeader',
@@ -5102,7 +5278,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'IgnorableEventType',
-    declaration: 'export type IgnorableEventType = \'enhance/attempt\';',
+    declaration: 'export type IgnorableEventType = \'enhance/attempt\' | \'project/milestone\' | \'workspace/halt\';',
   },
   {
     name: 'IgnorableIntent',
@@ -5231,6 +5407,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'JobHandle',
     declaration: 'export interface JobHandle {\n    readonly id: JobId;\n    append(text: string, options?: JobAppendOptions): void;\n    updateProgress(line: string): void;\n}',
+  },
+  {
+    name: 'JobHasRowsRequest',
+    declaration: 'export interface JobHasRowsRequest {\n    readonly sessionIds: readonly SessionId[];\n}',
+  },
+  {
+    name: 'JobHasRowsValue',
+    declaration: 'export interface JobHasRowsValue {\n    readonly withJobRows: readonly SessionId[];\n}',
   },
   {
     name: 'JobHooks',
@@ -6425,6 +6609,46 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SessionPromptValue {\n    readonly accepted: true;\n}',
   },
   {
+    name: 'SessionQueryFilterEventsRequest',
+    declaration: 'export interface SessionQueryFilterEventsRequest {\n    readonly sessionId: SessionId;\n    readonly filters: readonly SessionEventResultFilter[];\n}',
+  },
+  {
+    name: 'SessionQueryFilterEventsValue',
+    declaration: 'export type SessionQueryFilterEventsValue = readonly SessionEventSearchDocument[];',
+  },
+  {
+    name: 'SessionQueryListRequest',
+    declaration: 'export interface SessionQueryListRequest {\n    readonly _?: never;\n}',
+  },
+  {
+    name: 'SessionQueryListValue',
+    declaration: 'export type SessionQueryListValue = readonly import(\'@deepseek-ai/dsh-session-query\').SessionRecord[];',
+  },
+  {
+    name: 'SessionQueryReadRequest',
+    declaration: 'export interface SessionQueryReadRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionQueryReadValue',
+    declaration: 'export type SessionQueryReadValue = SessionQueryWireLogSnapshot;',
+  },
+  {
+    name: 'SessionQueryTraceRequest',
+    declaration: 'export interface SessionQueryTraceRequest {\n    readonly sessionId: SessionId;\n}',
+  },
+  {
+    name: 'SessionQueryTraceValue',
+    declaration: 'export type SessionQueryTraceValue = SessionLineageTrace;',
+  },
+  {
+    name: 'SessionQueryWireEvent',
+    declaration: 'export interface SessionQueryWireEvent {\n    readonly type: string;\n    readonly seq: number;\n    readonly time: number;\n    readonly data: JsonValue;\n    readonly ignorable?: true;\n    readonly sourceEventSeqs?: JsonValue;\n    readonly surfaceOp?: JsonValue;\n}',
+  },
+  {
+    name: 'SessionQueryWireLogSnapshot',
+    declaration: 'export interface SessionQueryWireLogSnapshot {\n    readonly session: import(\'@deepseek-ai/dsh-session\').SessionHeader;\n    readonly inheritedEventCount: number;\n    readonly events: readonly SessionQueryWireEvent[];\n}',
+  },
+  {
     name: 'SessionRecord',
     declaration: 'export interface SessionRecord {\n    header: SessionHeader;\n    live: boolean;\n    persisted: boolean;\n}',
   },
@@ -6866,7 +7090,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentCapabilities',
-    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n}',
+    declaration: 'export interface SubagentCapabilities {\n    readonly agentOptions: boolean;\n    readonly cwd: boolean;\n    readonly outputSchema: boolean;\n    readonly depthLimit: boolean;\n    readonly toolFilter: boolean;\n    readonly persona: boolean;\n}',
   },
   {
     name: 'SubagentCatalogEntry',
@@ -6942,7 +7166,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SubagentStartRequest',
-    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
+    declaration: 'export interface SubagentStartRequest {\n    readonly label?: string;\n    readonly prompt: ContentBlock[];\n    readonly parent: Agent;\n    readonly signal: AbortSignal;\n    readonly agentOptions?: AgentOptions;\n    readonly cwd?: string;\n    readonly outputSchema?: ObjectJsonSchema;\n    readonly maxDepth?: number;\n    readonly toolFilter?: ToolRestriction;\n    readonly persona?: string;\n}',
   },
   {
     name: 'SubagentStopReason',
@@ -7727,6 +7951,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceFileWatchFrame',
     declaration: 'export type WorkspaceFileWatchFrame = {\n    readonly kind: \'ready\';\n} | {\n    readonly kind: \'change\';\n    readonly change: WorkspaceFileChange;\n};',
+  },
+  {
+    name: 'WorkspaceFleetHaltRequest',
+    declaration: 'export interface WorkspaceFleetHaltRequest {\n    readonly stopActivity?: boolean;\n}',
+  },
+  {
+    name: 'WorkspaceFleetHaltValue',
+    declaration: 'export interface WorkspaceFleetHaltValue {\n    readonly archivedSessionIds: readonly SessionId[];\n}',
   },
   {
     name: 'WorkspaceFollowFrame',

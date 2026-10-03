@@ -14,7 +14,9 @@ import type {} from '@deepseek-ai/dsh-jobs'
 import { Remote, RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import { observeJobOutput } from './observe.ts'
 import { streamJobRows } from './rows.ts'
-import type { JobKillRequest, JobKillValue, JobFollowFrame, JobFollowRequest, JobListFrame, JobListRequest } from './types.ts'
+import type {
+  JobFollowFrame, JobFollowRequest, JobHasRowsRequest, JobHasRowsValue, JobKillRequest, JobKillValue, JobListFrame, JobListRequest,
+} from './types.ts'
 
 export type * from './types.ts'
 
@@ -124,6 +126,24 @@ export class JobController extends TypertRemoteService {
     // contract (job state unchanged) instead of masquerading as job-not-found.
     const outcome = jobs.kill(request.jobId, request.sessionId, 'cancelled by the user')
     return { outcome }
+  }
+
+  /**
+   * Test which of the requested sessions hold at least one visible job row.
+   * One caller-argument fence read per listed session — `ctx.jobs.list(sessionId)`
+   * returns exactly the jobs that Session can see, so the read never reveals
+   * another browser's roster. The predicate is row presence only: it answers
+   * the Workspace browser's Agent-activity filter, which asks whether a Session
+   * owns (or can see) any background job, not what those jobs are.
+   * @param request - the sessions whose visible rosters to test.
+   * @returns the requested sessions that held at least one row.
+   */
+  @Remote('hasRows')
+  hasRows(request: JobHasRowsRequest): JobHasRowsValue {
+    const jobs = this.ctx.jobs
+    return {
+      withJobRows: request.sessionIds.filter(sessionId => jobs.list(sessionId).length > 0),
+    }
   }
 }
 

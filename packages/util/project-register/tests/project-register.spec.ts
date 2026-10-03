@@ -53,9 +53,35 @@ describe('register grammar', () => {
       '| D8 | 2026-09-21 | decision | unknown mark | accepted | bogus |',
       '| D5 | 2026-09-21 | decision |  | accepted | — |',
       '| D6 | 21-09-2026 | decision | bad date | accepted | — |',
-      '| D7 | 2026-09-21 | decision | ok | accepted | — | extra |',
+      '| D7 | 2026-09-21 | decision | too short | accepted |',
+      '| D9 | 2026-09-21 | milestone | mark without fingerprint | done | updated |',
+      '| D10 | 2026-09-21 | decision | widened by the project | accepted | — | owner |',
     ].join('\n')
-    expect(parseRegister(text)).toEqual([DECISION, ROW])
+    expect(parseRegister(text)).toEqual([
+      DECISION,
+      ROW,
+      {
+        id: 'D9', date: '2026-09-21', kind: 'milestone', title: 'mark without fingerprint',
+        status: 'done', diagram: { flag: 'updated', fingerprint: null },
+      },
+      {
+        id: 'D10', date: '2026-09-21', kind: 'decision', title: 'widened by the project',
+        status: 'accepted', diagram: null,
+      },
+    ])
+  })
+
+  it('reads a table the project widened instead of emptying it', () => {
+    const widened = formatRegisterRow(DECISION).replace(/ \|$/, ' | owner |')
+    const lines = [
+      '| ID | Date | Kind | Title | Status | Diagram | Owner |',
+      '|----|------|------|-------|--------|---------|-------|',
+      widened,
+    ]
+
+    expect(parseRegister(lines.join('\n'))).toEqual([DECISION])
+    expect(appendRegisterRow(lines.join('\n'), ROW))
+      .toBe([...lines, formatRegisterRow(ROW), ''].join('\n'))
   })
 
   it('appends to an existing table and mints the next identity from raw lines', () => {
@@ -136,8 +162,20 @@ describe('diagram extraction and fingerprints', () => {
     expect(diagramFreshness(source, undefined)).toBe('current')
     expect(diagramFreshness(source, { flag: 'updated', fingerprint })).toBe('current')
     expect(diagramFreshness(source, { flag: 'stale', fingerprint })).toBe('stale')
-    expect(diagramFreshness('graph TD; A-->C', { flag: 'stale', fingerprint })).toBe('current')
     expect(diagramFreshness(source, { flag: 'stale', fingerprint: null })).toBe('stale')
+  })
+
+  it('reports a diagram edited after the milestone that recorded it', () => {
+    const fingerprint = diagramFingerprint('graph TD; A-->B')
+    const edited = 'graph TD; A-->C'
+    expect(diagramFreshness(edited, { flag: 'updated', fingerprint })).toBe('changed')
+    expect(diagramFreshness(edited, { flag: 'stale', fingerprint })).toBe('changed')
+  })
+
+  it('keeps a recorded verdict when the milestone carried no fingerprint', () => {
+    const source = 'graph TD; A-->B'
+    expect(diagramFreshness(source, { flag: 'absent', fingerprint: null })).toBe('current')
+    expect(diagramFreshness(source, { flag: 'updated', fingerprint: null })).toBe('current')
   })
 })
 

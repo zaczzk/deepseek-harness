@@ -33,7 +33,7 @@ The first request includes one durable baseline message with the user-global `$D
 
 ### Configuration
 
-The defaults suit a typical checkout: `.git` marks the project root, `AGENTS.md` and `CLAUDE.md` are the base candidates, and `AGENTS.local.md` and `CLAUDE.local.md` are additive local overlays. Only `maxBytes` is required — it caps the complete rendered baseline so each deployment chooses its prompt budget explicitly.
+The defaults suit a typical checkout: `.git` marks the project root, `AGENTS.md` and `CLAUDE.md` are the base candidates, and `AGENTS.local.md` and `CLAUDE.local.md` are additive local overlays. A project decision register (`DECISIONS.md`) is parsed into ranked register guidance: the register's table rows and the latest milestone's diagram freshness, rendered as a compact table capped by the same `maxBytes` budget. Only `maxBytes` is required — it caps the complete rendered baseline so each deployment chooses its prompt budget explicitly.
 
 Root discovery climbs only when a marker probe confirms that the marker is absent. A permission or I/O failure stops discovery and surfaces the host or filesystem-provider error instead of selecting an ancestor project. The [root-marker metadata decision](../../../.agents/notes/implemented/bug-fix/2026-09-03-root-marker-metadata-failures.md) records why discovery fails instead of substituting another root.
 
@@ -53,6 +53,7 @@ export interface Config {
   maxSourceBytes?: number
   instructionFileCandidates?: string[]
   localInstructionFileCandidates?: string[]
+  registerFileCandidates?: string[]
 }
 ```
 
@@ -63,7 +64,10 @@ export interface Config {
 | `projectRootMarkers` | `['.git']` | Directory names that mark the project root |
 | `instructionFileCandidates` | `['AGENTS.md', 'CLAUDE.md']` | Base file names loaded in each project directory |
 | `localInstructionFileCandidates` | `['AGENTS.local.md', 'CLAUDE.local.md']` | Local overlay file names loaded after the base files |
+| `registerFileCandidates` | `['DECISIONS.md']` | Project decision-register names parsed into ranked register guidance at the project root; empty disables it |
 | `dshHome` | `$DSH_HOME` or `~/.dsh` | Directory containing the user-global `AGENTS.md` |
+
+Ranked register guidance renders the register's table rows verbatim from the compact row format `util/project-register` publishes, followed by the latest milestone's diagram freshness line. The raw register prose is never injected — only the ranked table and freshness line, so a table without its rationale never invites the model to treat row titles as authority. An unreadable or row-less register contributes nothing, and the whole block sits under the same `maxBytes` budget as ordinary instruction files.
 
 The generated [configuration catalog](../../../docs/config-catalog.md#deepseek-aidsh-agent-instructions) is the exhaustive source for every accepted field and its JSDoc.
 
@@ -93,6 +97,7 @@ The plugin is built on one principle: workspace instructions are durable convers
 | [`src/config.ts`](src/config.ts) | `Config` schema, budget resolution, baseline identity |
 | [`src/files.ts`](src/files.ts) | Candidate discovery, project-root search, bounded streaming reads |
 | [`src/render.ts`](src/render.ts) | Instruction rendering, budget truncation, change records |
+| [`src/register.ts`](src/register.ts) | Parsed ranked register guidance from `util/project-register` |
 | [`src/state.ts`](src/state.ts) | Durable message sources, version/digest cache, reconciliation |
 | [`src/digest.ts`](src/digest.ts) | SHA-1 content identity and per-directory duplicate keys |
 | — | No runtime invariant companion is published; replay intentionally tolerates unknown or malformed workspace sources, while focused pipeline tests own its private pending/cache state transitions. |

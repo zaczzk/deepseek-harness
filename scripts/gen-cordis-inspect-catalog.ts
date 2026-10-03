@@ -19,7 +19,9 @@ const CLIENT_SERVICES: Readonly<Record<string, readonly string[]>> = {
     'openSession', 'openWorkspace', 'forkSession', 'connectWorkspace', 'startSession', 'archiveSession', 'unarchiveSession',
     'pickDirectory', 'listDirectory', 'createDirectory',
   ],
-  workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession', 'unarchiveSession'],
+  workspaces: ['create', 'rename', 'delete', 'insertSessionBefore', 'archiveSession', 'unarchiveSession', 'fleetHalt'],
+  sessionQueries: ['listSessions', 'readSession', 'filterEvents', 'traceSession'],
+  approvalRuleSets: ['list', 'save', 'revoke'],
 }
 
 const CLIENT_EVENTS = new Set([

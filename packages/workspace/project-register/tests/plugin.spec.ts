@@ -59,6 +59,16 @@ describe('project-register', () => {
       diagram: { flag: 'updated', fingerprint },
     })
 
+    // Each committed row appends an ignorable, log-only project/milestone event
+    // to the owning session — the row publishes only after the commit lands.
+    const milestoneEvents = session.ownEvents().filter(event => event.type === 'project/milestone')
+    expect(milestoneEvents).toHaveLength(2)
+    expect(milestoneEvents.map(event => (event.data as { id: unknown }).id))
+      .toEqual(['M1' as unknown, 'M2' as unknown])
+    expect(milestoneEvents.map(event => (event.data as { diagram: unknown }).diagram))
+      .toEqual([{ flag: 'absent', fingerprint: null }, { flag: 'updated', fingerprint }])
+    expect(milestoneEvents[0]!.ignorable).toBe(true)
+
     // A milestone absent from the previous list still records; an unchanged diagram reads as stale.
     session.append('todo/write', {
       todos: [

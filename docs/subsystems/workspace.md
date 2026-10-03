@@ -389,6 +389,17 @@ Host service backing the generated `ctx.remote.workspace` namespace.
 @Remote('unarchiveSession') unarchiveSession(request: WorkspaceUnarchiveSessionRequest): Promise<WorkspaceArchiveValue>
 
 /**
+ * Halt-all: archive every archivable Session across every Workspace this
+ * Host serves. The dispatch loops the per-Workspace Session membership the
+ * registry already owns, issues one marker-carrying `archiveSession` per
+ * Session, and returns the archived Session identities in dispatch order —
+ * a partial archive reports its resolution, never the count offered.
+ * @param request - whether to stop each Session's running work.
+ * @returns the archived Session identities.
+ */
+@Remote('fleetHalt') fleetHalt(request: WorkspaceFleetHaltRequest): Promise<WorkspaceFleetHaltValue>
+
+/**
  * Surface one known unarchived Session ahead of unpinned Sessions.
  * @param request - Session identity to pin.
  * @returns the complete resulting pin set, most recently pinned first.

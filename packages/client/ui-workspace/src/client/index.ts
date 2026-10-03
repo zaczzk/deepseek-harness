@@ -14,6 +14,7 @@
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { RemoteHostFacts } from '@deepseek-ai/dsh-api-remotes/client'
+import type { IJobs } from '@deepseek-ai/dsh-api-job-controller/client'
 import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {
   IWorkspaces, SessionActivity, WorkspaceArchiveError, WorkspaceSnapshot,
@@ -88,7 +89,7 @@ const NS = 'workspace'
  * declaration through `slots.inject()` instead of assuming order.
  */
 export const inject = [
-  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'layout',
+  'slots', 'sessions', 'workspaces', 'locale', 'remote', 'remote.directoryPicker', 'layout', 'jobs',
 ]
 
 /**
@@ -236,6 +237,11 @@ export function apply(ctx: Context): void {
     },
     unarchiveSession: async (sessionId) => { await uiWorkspace.unarchiveSession(sessionId) },
     createWorkspace: input => workspaces.create(input),
+    readJobRosters: async (sessionIds) => {
+      const result = await (ctx.jobs as IJobs).hasRows(sessionIds)
+      if (!result.ok) throw new Error(result.error.message)
+      return result.value.withJobRows
+    },
     hooks: { directoryFlow: browserFlowSource, hostInfo },
   })
   const pickerInjected = (): WorkspacePickerInjected => ({

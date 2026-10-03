@@ -23,7 +23,7 @@ const data: EnhanceAttemptEventData = {
 
 describe('enhance/attempt envelope declaration', () => {
   it('requires the envelope marker on the write intent of ignorable event types', () => {
-    expectTypeOf<IgnorableEventType>().toEqualTypeOf<'enhance/attempt'>()
+    expectTypeOf<IgnorableEventType>().toEqualTypeOf<'enhance/attempt' | 'project/milestone'>()
     expectTypeOf<IgnorableIntent['ignorable']>().toEqualTypeOf<true>()
     expectTypeOf<SessionEvent<'enhance/attempt'>['data']>().toEqualTypeOf<EnhanceAttemptEventData>()
     expectTypeOf<SessionEvent<'enhance/attempt'>['surfaceOp']>().toEqualTypeOf<undefined>()

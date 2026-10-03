@@ -258,6 +258,20 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Streams one background job\'s observation record over the generated Remote namespace; the roster stays on the session control stream.',
   },
   {
+    key: 'sessionQueryController',
+    pkg: 'api-session-query-controller',
+    title: 'Host session-query Remote controller',
+    mode: 'core',
+    note: 'Wraps the session-query domain\'s exact reads, traces, and filters over the generated Remote namespace; it is a thin seam owning no query state, translating the domain\'s typed failures onto the Remote error channel.',
+  },
+  {
+    key: 'approvalRuleController',
+    pkg: 'api-approval-rules',
+    title: 'Host approval-rules Remote controller',
+    mode: 'core',
+    note: 'Wraps the durable remembered-rule store\'s list, save, and revoke over the generated Remote namespace; it is a thin seam owning no grant lifecycle, mapping the store\'s failures onto the Remote error channel.',
+  },
+  {
     key: 'credentialsController',
     pkg: 'api-settings-controller',
     title: 'Host credential-surface Remote controller',
@@ -422,6 +436,14 @@ const SERVICE_ROLES: ServiceRole[] = [
     mode: 'core',
     consumers: ['workspace'],
     note: 'Waits for every configured backend, then publishes the domain form as one lifecycle-bound service for typed durable state.',
+  },
+  {
+    key: 'artifactStore',
+    pkg: 'artifact-store',
+    title: 'Durable artifact store',
+    mode: 'service',
+    consumers: ['workspace-changes'],
+    note: 'Promotes workspace-changes SHA-1 whole-file captures into a storage-domain-backed store with per-workspace oldest-turn-first eviction and age-based pruning; the writer activates through the store service.',
   },
   {
     key: 'messageFeedback',
@@ -648,6 +670,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     implementations: [],
     consumers: ['tools', 'tool-bash', 'acp'],
     note: 'One-shot permission decisions dispatched over the `approval/request` waterfall; answerers are listeners (the ACP bridge for its own agents), absence fails closed to `unavailable`.',
+  },
+  {
+    key: 'approvalRules',
+    pkg: 'user-approval',
+    title: 'Approval-rule store',
+    mode: 'core',
+    implementations: [],
+    consumers: ['user-approval'],
+    note: 'Durable remembered-approval-rule store (`approval_rules` domain table); a tool-name-scoped rule answers the `approval/request` before any answerer, and the rule-management Remote and Settings seat share the opened table.',
   },
   {
     key: 'permissionPresets',

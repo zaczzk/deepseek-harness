@@ -221,6 +221,16 @@ export type WorkspaceBrowserInjected = {
   unarchiveSession: (sessionId: SessionId) => Promise<void>
   /** Adopt a picked host directory as a real Workspace before targeting a Session. */
   createWorkspace: (input: { path: string }) => Promise<WorkspaceView>
+  /**
+   * Read which of the given Sessions currently hold at least one visible job
+   * row, over the `api/job-controller` Client face. Resolves once for the
+   * whole requested set (a read either completes for every listed Session or
+   * rejects); the Agent-activity filter owns the refresh rule that re-issues
+   * it.
+   * @param sessionIds - the Sessions whose visible job rosters to test.
+   * @returns the subset that held at least one row.
+   */
+  readJobRosters: (sessionIds: readonly SessionId[]) => Promise<readonly SessionId[]>
 }
 
 /** The browser's declared viewing store handle, shared with the row actions that write view state. */

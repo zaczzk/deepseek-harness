@@ -1,0 +1,140 @@
+{
+  "formatVersion": 2,
+  "roots": [
+    {
+      "key": "event:project/milestone",
+      "kind": "event",
+      "event": "project/milestone",
+      "surface": false,
+      "digest": "72c664e8bbdb11ec681f558723fbe1d4f4fff41d62cb2fd7137af15a17921dd1",
+      "schema": {
+        "root": 0,
+        "nodes": [
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "data",
+                "type": 1,
+                "optional": false
+              },
+              {
+                "name": "ignorable",
+                "type": 11,
+                "optional": true
+              },
+              {
+                "name": "seq",
+                "type": 12,
+                "optional": false
+              },
+              {
+                "name": "time",
+                "type": 12,
+                "optional": false
+              },
+              {
+                "name": "type",
+                "type": 13,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "diagram",
+                "type": 2,
+                "optional": false
+              },
+              {
+                "name": "id",
+                "type": 6,
+                "optional": false
+              },
+              {
+                "name": "title",
+                "type": 6,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "union",
+            "types": [
+              3,
+              5
+            ]
+          },
+          {
+            "kind": "object",
+            "properties": [
+              {
+                "name": "fingerprint",
+                "type": 4,
+                "optional": false
+              },
+              {
+                "name": "flag",
+                "type": 7,
+                "optional": false
+              }
+            ],
+            "indices": []
+          },
+          {
+            "kind": "union",
+            "types": [
+              5,
+              6
+            ]
+          },
+          {
+            "kind": "primitive",
+            "type": "null"
+          },
+          {
+            "kind": "primitive",
+            "type": "string"
+          },
+          {
+            "kind": "union",
+            "types": [
+              8,
+              9,
+              10
+            ]
+          },
+          {
+            "kind": "literal",
+            "value": "absent"
+          },
+          {
+            "kind": "literal",
+            "value": "stale"
+          },
+          {
+            "kind": "literal",
+            "value": "updated"
+          },
+          {
+            "kind": "literal",
+            "value": true
+          },
+          {
+            "kind": "primitive",
+            "type": "number"
+          },
+          {
+            "kind": "literal",
+            "value": "project/milestone"
+          }
+        ]
+      }
+    }
+  ],
+  "types": []
+}

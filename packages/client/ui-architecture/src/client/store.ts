@@ -31,6 +31,8 @@ export interface RenderState {
   source?: string
   /** Rendered SVG markup. */
   svg?: string
+  /** Reduced Mermaid failure text shown beside the failure sentence. */
+  error?: string
 }
 
 /** The tab's complete state for one Session. */
@@ -51,8 +53,8 @@ type ArchitectureActions = {
   rendering: (draft: ArchitectureState, source: string) => void
   /** @param draft - state. @param source - rendered diagram source. @param svg - rendered SVG markup. */
   rendered: (draft: ArchitectureState, source: string, svg: string) => void
-  /** @param draft - state. @param source - diagram source whose render failed. */
-  renderFailed: (draft: ArchitectureState, source: string) => void
+  /** @param draft - state. @param source - diagram source whose render failed. @param error - reduced Mermaid failure text. */
+  renderFailed: (draft: ArchitectureState, source: string, error: string) => void
 }
 
 /** The architecture store handle shared by the tab registration. */
@@ -101,9 +103,9 @@ export function createArchitectureStore(): ArchitectureStore {
         if (d.render.source !== source) return
         d.render = { status: 'ready', source, svg }
       },
-      renderFailed: (d, source: string) => {
+      renderFailed: (d, source: string, error: string) => {
         if (d.render.source !== source) return
-        d.render = { status: 'failed', source }
+        d.render = { status: 'failed', source, error }
       },
     },
   })
