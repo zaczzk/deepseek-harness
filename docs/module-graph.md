@@ -185,6 +185,7 @@ flowchart TD
     pkg_client_ui_primitives["client-ui-primitives"]
     pkg_client_ui_reference["client-ui-reference"]
     pkg_client_ui_renderer["client-ui-renderer"]
+    pkg_client_ui_run_comparison["client-ui-run-comparison"]
     pkg_client_ui_schedule["client-ui-schedule"]
     pkg_client_ui_session["client-ui-session"]
     pkg_client_ui_settings["client-ui-settings"]
@@ -1439,6 +1440,7 @@ flowchart TD
 | [`client-ui-primitives`](../packages/client/ui-primitives) | `client` | — |
 | [`client-ui-reference`](../packages/client/ui-reference) | `client` | — |
 | [`client-ui-renderer`](../packages/client/ui-renderer) | `client` | — |
+| [`client-ui-run-comparison`](../packages/client/ui-run-comparison) | `client` | — |
 | [`client-ui-schedule`](../packages/client/ui-schedule) | `client` | — |
 | [`client-ui-session`](../packages/client/ui-session) | `client` | — |
 | [`client-ui-settings`](../packages/client/ui-settings) | `client` | — |

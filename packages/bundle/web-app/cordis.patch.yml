@@ -442,6 +442,8 @@
 
     - id: ui-decisions
       name: '@deepseek-ai/dsh-client-ui-decisions'
+    - id: ui-run-comparison
+      name: '@deepseek-ai/dsh-client-ui-run-comparison'
 
     # Milestone in the transcript: the keyed project/milestone node renders one
     # committed DECISIONS.md milestone row (M<n>, title, diagram mark) per

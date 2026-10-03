@@ -92,6 +92,7 @@ Every package below exports a Cordis plugin that a bundle patch can name in a Lo
 | `@deepseek-ai/dsh-client-ui-plugin-manager` | no | Plugin management for the dsh web client: the sidebar Plugins panel installs, enables, disables, retries, and composes installed plugin packages |
 | `@deepseek-ai/dsh-client-ui-reference` | no | Unified Web @file and @session reference source |
 | `@deepseek-ai/dsh-client-ui-renderer` | no | Browser UI renderer: React slot bindings, ctx.uiRenderer, and the assembled application root |
+| `@deepseek-ai/dsh-client-ui-run-comparison` | no | Run comparison conversation view: picks two persisted Sessions from the session-query roster and folds the six per-run metrics (turns, tool calls, input/output tokens, wall-clock, failures) over their recorded logs |
 | `@deepseek-ai/dsh-client-ui-schedule` | no | Read-only active Schedule catalog in the Web Session header |
 | `@deepseek-ai/dsh-client-ui-session` | no | Session Controller adapter for React and session-scoped slots |
 | `@deepseek-ai/dsh-client-ui-settings` | no | Settings domain base plugin: shared configuration forms and the canonical settings slot-type contract |

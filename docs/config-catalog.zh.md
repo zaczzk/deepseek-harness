@@ -180,6 +180,22 @@ Depends on: [`ToolPresentationMode`](subsystems/tools.zh.md)
 
 来源： [`packages/core/agent-tool-presentation/src/index.ts:38`](../packages/core/agent-tool-presentation/src/index.ts)
 
+<a id="deepseek-aidsh-api-approval-rules"></a>
+
+## `@deepseek-ai/dsh-api-approval-rules`
+
+需要： `approvalRules` · `typert`
+
+```ts config-catalog
+/** Approval Rules Controller deployment policy. */
+export interface Config {
+  /** Reserved for deployment-tunable rule-management bounds; no field is shipped. */
+  readonly _?: never
+}
+```
+
+来源： [`packages/api/approval-rules/src/index.ts:37`](../packages/api/approval-rules/src/index.ts)
+
 <a id="deepseek-aidsh-api-gateway"></a>
 
 ## `@deepseek-ai/dsh-api-gateway`
@@ -3782,6 +3798,14 @@ export interface Config {
    */
   agentOptions?: AgentOptions
   /**
+   * Working directory every child session starts in. Requires the provider's
+   * `cwd` capability; omission inherits the delegating parent session's cwd.
+   * Absolute or, like the provider backends' own configured cwd, interpreted
+   * against the harness launch directory and validated as an enterable
+   * directory at load.
+   */
+  cwd?: string
+  /**
    * Per-child persona that shadows `deployment:persona-prefix`. Requires the
    * provider's `persona` capability; omission preserves the deployment persona.
    */
@@ -4253,6 +4277,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-resources`（[`packages/client/resources/src/index.ts`](../packages/client/resources/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-approval-rules`（[`packages/client/ui-approval-rules/src/index.ts`](../packages/client/ui-approval-rules/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-architecture`（[`packages/client/ui-architecture/src/index.ts`](../packages/client/ui-architecture/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
@@ -4278,6 +4303,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-plugin-manager`（[`packages/client/ui-plugin-manager/src/index.ts`](../packages/client/ui-plugin-manager/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-reference`（[`packages/client/ui-reference/src/index.ts`](../packages/client/ui-reference/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-renderer`（[`packages/client/ui-renderer/src/index.ts`](../packages/client/ui-renderer/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-run-comparison`（[`packages/client/ui-run-comparison/src/index.ts`](../packages/client/ui-run-comparison/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-schedule`（[`packages/client/ui-schedule/src/index.ts`](../packages/client/ui-schedule/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-session`（[`packages/client/ui-session/src/index.ts`](../packages/client/ui-session/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings`（[`packages/client/ui-settings/src/index.ts`](../packages/client/ui-settings/src/index.ts)）
@@ -4309,6 +4335,7 @@ export interface Config {
 - `@deepseek-ai/dsh-computer-use`（[`packages/computer-use/computer-use/src/index.ts`](../packages/computer-use/computer-use/src/index.ts)）
 - `@deepseek-ai/dsh-config-editor` — requires `loader` · `profileContext`（[`packages/boot/config-editor/src/index.ts`](../packages/boot/config-editor/src/index.ts)）
 - `@deepseek-ai/dsh-cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
+- `@deepseek-ai/dsh-decision-cost` — 需要 `sessionProjections`（[`packages/session/decision-cost/src/index.ts`](../packages/session/decision-cost/src/index.ts)）
 - `@deepseek-ai/dsh-deepseek-llm-api-extensions`（[`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-auto-review` — 需要 `llm` · `permissionPresets` · `sessions` · `tools`（[`packages/experimental/auto-review/src/index.ts`](../packages/experimental/auto-review/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）

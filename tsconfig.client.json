@@ -123,6 +123,7 @@
     { "path": "./packages/client/ui-trajectory" },
     { "path": "./packages/client/ui-architecture" },
     { "path": "./packages/client/ui-decisions" },
+    { "path": "./packages/client/ui-run-comparison" },
     { "path": "./packages/client/ui-usage" },
     { "path": "./packages/session-query/session-log-export/tsconfig.client.json" },
     { "path": "./packages/client/ui-open-in-app" },
