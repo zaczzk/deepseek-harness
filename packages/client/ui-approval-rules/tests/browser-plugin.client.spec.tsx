@@ -141,7 +141,7 @@ describe('ui-approval-rules browser plugin', () => {
 
 describe('ui-approval-rules node half', () => {
   it('declares its service edges and keeps the node apply inert', () => {
-    expect(inject).toEqual(['uiConversation', 'slots', 'locale', 'approvalRuleSets'])
+    expect(inject).toEqual(['uiConversation', 'slots', 'locale', 'approvalRuleSets', 'remote', 'remote.permissionPresets', 'sessions'])
     expect(() => { nodeApply() }).not.toThrow()
   })
 })

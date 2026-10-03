@@ -9,7 +9,7 @@ kind: "package-reference"
 
 ## 概述
 
-Web GUI 的审批规则界面展示持久记住的审批规则，供用户添加、编辑或撤销，并把每条由规则应答的工具调用渲染为一条转录行。Settings 区块持有规则名册：它读取并写入由 [approval-rules 控制器](../../api/approval-rules/README.zh.md) 镜像到 `interaction/user-approval` 包打开的持久存储之上的生成式 `approvalRuleSets` 客户端服务。规则应答转录行把 `approval/decided` 审计事件——当它携带记住规则引用时——折叠为每次应答调用一条带 key 的 `conversation.chat.node` 行，点明应答规则及其（非永久规则时的）到期时间；交互式应答（无规则）不渲染任何内容。
+Web GUI 的审批规则界面展示持久记住的审批规则，供用户添加、编辑或撤销，并把每条由规则应答的工具调用渲染为一条转录行。Settings 区块持有规则名册：它读取并写入由 [approval-rules 控制器](../../api/approval-rules/README.zh.md) 镜像到 `interaction/user-approval` 包打开的持久存储之上的生成式 `approvalRuleSets` 客户端服务，并在名册下方渲染有效权限读数——当前保留会话的有效沙箱模式、工作区根目录与权限取值（来自一次 `session.projections` 读取）。规则应答转录行把 `approval/decided` 审计事件——当它携带记住规则引用时——折叠为每次应答调用一条带 key 的 `conversation.chat.node` 行，点明应答规则及其（非永久规则时的）到期时间；交互式应答（无规则）不渲染任何内容。
 
 ## 目录
 
@@ -25,7 +25,7 @@ Web GUI 的审批规则界面展示持久记住的审批规则，供用户添加
 <a id="use-this-package"></a>
 ## 使用本包
 
-与 `ui-conversation`、`ui-chat` 及 `ui-settings` 一起挂载本插件；随后 `approval-rules` Settings 区块会出现在 Settings 区块列表中，只要会话跟踪 `approval/decided` 事件，规则应答行就会出现在聊天转录中。区块列出持久规则（名称、工具、允许/拒绝效果，以及设置有到期时的到期时间），提供“添加规则”及每行的“编辑”与“撤销”，并打开添加/编辑表单。加载中、空、读取失败、写入失败与保存后刷新等状态各自渲染带 key 的行；落地写入后的名册重新读取若失败，会在刷新错误提示下保留各行。
+与 `ui-conversation`、`ui-chat` 及 `ui-settings` 一起挂载本插件；随后 `approval-rules` Settings 区块会出现在 Settings 区块列表中，只要会话跟踪 `approval/decided` 事件，规则应答行就会出现在聊天转录中。区块列出持久规则（名称、工具、允许/拒绝效果，以及设置有到期时的到期时间），提供“添加规则”及每行的“编辑”与“撤销”，并打开添加/编辑表单。加载中、空、读取失败、写入失败与保存后刷新等状态各自渲染带 key 的行；落地写入后的名册重新读取若失败，会在刷新错误提示下保留各行。在名册下方，区块显示当前保留会话的有效沙箱模式、工作区根目录与权限取值——无会话的界面为三者都显示部署默认值，读取失败则渲染一条共享错误行与一个重新发起投影读取的“重试”。
 
 ### 失败
 
@@ -39,7 +39,7 @@ Web GUI 的审批规则界面展示持久记住的审批规则，供用户添加
 <details>
 <summary>实现细节——点击展开</summary>
 
-该插件的浏览器端注册三项随插件 fiber 一起存在（卸载时一并消失，保证 HMR 安全）的贡献：`approval-rule` Conversation Definition 及其带 key 的 `conversation.chat.node` 渲染器、`approval-rules` Settings 区块，以及合并进 UI slots `LocaleNamespaceMap` 的共享 `approval.rules` 语言包。区块由 `ApprovalRulesSectionController` 驱动，其基于 `createSnapshotStore` 的 store 拥有名册读取与添加/编辑/撤销写入路径；并发读取共享同一次读取，成功写入后重新读取列表。所有读写与 `approvalRuleSets` 客户端服务的 `list`/`save`/`revoke` 一一对应。转录 Definition 只匹配携带 `rule` 的 `approval/decided` 记录，按请求 id 为每次应答调用创建一个行，并在渲染时折叠连续的同名规则行——绝不合并事件。所有渲染字符串都是带 key 的 `approval.rules` 值；区块与转录共享该命名空间。
+该插件的浏览器端注册三项随插件 fiber 一起存在（卸载时一并消失，保证 HMR 安全）的贡献：`approval-rule` Conversation Definition 及其带 key 的 `conversation.chat.node` 渲染器、`approval-rules` Settings 区块，以及合并进 UI slots `LocaleNamespaceMap` 的共享 `approval.rules` 语言包。区块由 `ApprovalRulesSectionController` 驱动，其基于 `createSnapshotStore` 的 store 拥有名册读取与添加/编辑/撤销写入路径；并发读取共享同一次读取，成功写入后重新读取列表。所有读写与 `approvalRuleSets` 客户端服务的 `list`/`save`/`revoke` 一一对应。有效权限读数从当前保留会话（通过面板门控与 `retainedBy.mainView` 扫描定位）的一次 `session.projections` 读取推导三个字段；读取失败会把所有字段折叠为一条共享错误行与一个“重试”，无会话的界面则显示部署默认值。转录 Definition 只匹配携带 `rule` 的 `approval/decided` 记录，按请求 id 为每次应答调用创建一个行，并在渲染时折叠连续的同名规则行——绝不合并事件。所有渲染字符串都是带 key 的 `approval.rules` 值；区块与转录共享该命名空间。
 
 </details>
 
@@ -71,7 +71,7 @@ Web GUI 的审批规则界面展示持久记住的审批规则，供用户添加
 
 这些限制界定了当前审批规则界面。它们是当前包约束，不是审批规则对比或任务积压。
 
-- **有效权限读数位于别处**——本包拥有规则名册（列表、添加/编辑、撤销）与应答行转录；有效权限/沙箱读数归另一个 seat 包。
+- **读数范围限于保留会话**——有效权限读数通过 `retainedBy.mainView` 扫描标记当前视图中保留的会话；出现全局面板或视图未持有任何会话时，三个字段都显示无会话的部署默认值，而非某个具名会话的取值。
 
 <a id="dev-note"></a>
 ### 开发备注

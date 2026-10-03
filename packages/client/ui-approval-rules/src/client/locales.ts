@@ -17,7 +17,7 @@ export const NS = 'approval.rules'
  */
 export const zh = {
   'nav': '审批规则与权限',
-  'pending.read': '正在加载规则…',
+  'pending.read': '加载中…',
   'retry': '重试',
   'rules.empty': '暂无记住的规则',
   'rules.heading': '已记住的规则',
@@ -49,6 +49,18 @@ export const zh = {
   'rules.form.expiry': '到期时间',
   'transcript.rule': '规则 {name} 应答',
   'transcript.rule.fold': '×{n}',
+  'readout.subheading': '有效权限',
+  'readout.sandboxMode': '沙箱模式',
+  'readout.workspaceRoot': '工作区根目录',
+  'readout.permission': '权限',
+  'value.deploymentDefault': '部署默认值',
+  'value.readOnly': '仅可查看',
+  'value.workspaceWrite': '工作区内修改',
+  'value.fullAccess': '完全权限',
+  'value.auto': 'Auto review',
+  'label.session': '会话：{name}',
+  'label.sessionless': '未选择会话',
+  'error.read': '无法读取有效值',
 }
 
 /** Union of this namespace's dictionary keys. */
@@ -57,7 +69,7 @@ export type ApprovalRulesKey = keyof typeof zh
 /** English dictionary (same key set). */
 export const en: Record<ApprovalRulesKey, string> = {
   'nav': 'Approval rules and permissions',
-  'pending.read': 'Loading rules…',
+  'pending.read': 'Loading…',
   'retry': 'Retry',
   'rules.empty': 'No remembered rules yet',
   'rules.heading': 'Remembered rules',
@@ -89,4 +101,16 @@ export const en: Record<ApprovalRulesKey, string> = {
   'rules.form.expiry': 'Expiry',
   'transcript.rule': 'Answered by rule {name}',
   'transcript.rule.fold': '×{n}',
+  'readout.subheading': 'Effective permissions',
+  'readout.sandboxMode': 'Sandbox mode',
+  'readout.workspaceRoot': 'Workspace root',
+  'readout.permission': 'Permission',
+  'value.deploymentDefault': 'deployment default',
+  'value.readOnly': 'Read Only',
+  'value.workspaceWrite': 'Workspace Write',
+  'value.fullAccess': 'Full access',
+  'value.auto': 'Auto review',
+  'label.session': 'Session: {name}',
+  'label.sessionless': 'No Session selected',
+  'error.read': "Couldn't read effective values",
 }

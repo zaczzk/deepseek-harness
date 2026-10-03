@@ -9,12 +9,16 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-approval-rules/client'
+import type { ISessions } from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-chat/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-ui-slots'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { ApprovalRulesSectionController } from './approval-rules-store.ts'
 import { ApprovalRuleRow } from './ApprovalRuleRow.tsx'
 import { ApprovalRulesSection, type ApprovalRulesSectionInjected } from './ApprovalRulesSection.tsx'
@@ -30,11 +34,12 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
 }
 
 /** Required services for the Definition, keyed renderer, section, and copy. */
-export const inject = ['uiConversation', 'slots', 'locale', 'approvalRuleSets']
+export const inject = ['uiConversation', 'slots', 'locale', 'approvalRuleSets', 'remote', 'remote.permissionPresets', 'sessions']
 
 /**
  * Client plugin body: the rule-answered transcript row, the Settings section
- * owning the rule roster, and the shared dictionary.
+ * owning the rule roster (plus item 12's effective-permission readout over the
+ * Session controller and the permission catalog), and the shared dictionary.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
@@ -56,6 +61,7 @@ export function apply(ctx: ClientContext): void {
     locale: NS,
     inject: (): ApprovalRulesSectionInjected => {
       const section = new ApprovalRulesSectionController(ctx.approvalRuleSets)
+      const sessions = ctx.get('sessions') as ISessions
       return {
         hooks: { approvalRulesSection: section.store },
         load: () => section.load(),
@@ -67,6 +73,14 @@ export function apply(ctx: ClientContext): void {
         save: () => section.save(),
         revoke: (id: ApprovalRuleId) => section.revoke(id),
         dismissError: () => section.dismissError(),
+        readout: {
+          readCatalog: async () => {
+            const result = await ctx.remote.permissionPresets.catalog()
+            if (result.ok) return result.value
+            throw new Error(result.error.message)
+          },
+          refreshProjects: (sessionId: SessionId) => { void sessions.refreshProjections(sessionId) },
+        },
       }
     },
   }, ApprovalRulesSection))

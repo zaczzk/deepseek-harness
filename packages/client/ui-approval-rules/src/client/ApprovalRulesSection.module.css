@@ -86,3 +86,52 @@
   display: flex;
   gap: 8px;
 }
+
+.readout {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.readoutHeading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 600;
+}
+
+.sessionNote {
+  margin: 0;
+  color: var(--dsh-text-color-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fieldLabel {
+  min-width: 140px;
+  color: var(--dsh-text-color-secondary);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+}
+
+.fieldValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.retry {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--dsh-color-link, inherit);
+  font-size: var(--dsh-content-font-size-secondary, 13px);
+  cursor: pointer;
+}
+
+.retry:disabled {
+  color: var(--dsh-text-color-secondary);
+  cursor: default;
+}

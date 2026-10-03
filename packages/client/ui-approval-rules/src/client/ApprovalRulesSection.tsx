@@ -11,9 +11,12 @@ import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import type { ApprovalRuleId, ApprovalRuleView } from '@deepseek-ai/dsh-user-approval'
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PermissionCatalog } from '@deepseek-ai/dsh-permission-presets'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ApprovalRulesSectionState } from './approval-rules-store.ts'
 import type { ApprovalRuleWriteAction } from './approval-rules-store.ts'
 import type { ApprovalRulesKey } from './locales.ts'
+import { PermissionsReadout } from './PermissionsReadout.tsx'
 import css from './ApprovalRulesSection.module.css'
 
 /** Settings actions and their shared controller state. */
@@ -30,6 +33,11 @@ export interface ApprovalRulesSectionInjected {
   save: () => Promise<boolean>
   revoke: (id: ApprovalRuleId) => Promise<boolean>
   dismissError: () => void
+  /** Item 12 readout data access: process permission catalog + projection retry. */
+  readout: {
+    readCatalog: () => Promise<PermissionCatalog>
+    refreshProjects: (sessionId: SessionId) => void
+  }
 }
 /** Props assembled by the settings renderer. */
 export type ApprovalRulesSectionProps =
@@ -95,8 +103,8 @@ function listRow(
  * whose re-read failed shows the kept rows under `rules.refreshError`.
  */
 export function ApprovalRulesSection({
-  useApprovalRulesSection, load, retry, startCreate, startEdit, cancelEdit,
-  updateDraft, save, revoke, dismissError, t,
+  useApprovalRulesSection, useSessions, usePanelInfo, load, retry, startCreate, startEdit, cancelEdit,
+  updateDraft, save, revoke, dismissError, readout, t,
 }: ApprovalRulesSectionProps) {
   const state = useApprovalRulesSection(value => value)
   const [formKey, setFormKey] = useState<number>(0)
@@ -111,6 +119,14 @@ export function ApprovalRulesSection({
 
   return (
     <section className={css.section} data-approval-rules-section="" aria-label={t('rules.heading')}>
+      <PermissionsReadout
+        usePanelInfo={usePanelInfo}
+        useSessions={useSessions}
+        readCatalog={readout.readCatalog}
+        refreshProjects={readout.refreshProjects}
+        t={t}
+      />
+
       <h3 className={css.heading}>{t('rules.heading')}</h3>
 
       {state.status === 'loading' && state.rows.length === 0 && <p className={css.note}>{t('pending.read')}</p>}

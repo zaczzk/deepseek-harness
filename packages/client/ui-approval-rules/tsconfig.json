@@ -15,10 +15,19 @@
       "path": "../../api/approval-rules/tsconfig.client.json"
     },
     {
+      "path": "../../api/session-controller/tsconfig.client.json"
+    },
+    {
       "path": "../../core/session"
     },
     {
+      "path": "../../interaction/permission-presets"
+    },
+    {
       "path": "../../interaction/user-approval"
+    },
+    {
+      "path": "../../sandbox/sandbox-policy"
     },
     {
       "path": "../locale/tsconfig.client.json"
@@ -30,7 +39,13 @@
       "path": "../ui-conversation/tsconfig.client.json"
     },
     {
+      "path": "../ui-layout"
+    },
+    {
       "path": "../ui-renderer"
+    },
+    {
+      "path": "../ui-session"
     },
     {
       "path": "../ui-settings/tsconfig.client.json"

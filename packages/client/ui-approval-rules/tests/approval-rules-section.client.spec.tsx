@@ -48,10 +48,14 @@ function harness(service: {
 }): SectionBench {
   const controller = new ApprovalRulesSectionController({
     list: service.list,
-    save: service.save ?? vi.fn(async (): Promise<{ ok: true; value: { id: ApprovalRuleId } }> => ({ ok: true, value: { id: ID('id') } })),
-    revoke: service.revoke ?? vi.fn(async (): Promise<{ ok: true; value: { revoked: boolean } }> => ({ ok: true, value: { revoked: true } })),
+    save: service.save ?? vi.fn<() => Promise<{ ok: true; value: { id: ApprovalRuleId } }>>(
+      async () => ({ ok: true, value: { id: ID('id') } }),
+    ),
+    revoke: service.revoke ?? vi.fn<() => Promise<{ ok: true; value: { revoked: boolean } }>>(
+      async () => ({ ok: true, value: { revoked: true } }),
+    ),
   } as never)
-  let rerender: () => void = () => {}
+  const rerender: () => void = () => {}
   const bench: SectionBench = {
     controller,
     props: (): ApprovalRulesSectionPropsLike => {
@@ -61,11 +65,11 @@ function harness(service: {
         load: () => controller.load(),
         retry: () => controller.retry(),
         startCreate: () => controller.startCreate(),
-        startEdit: (id) => controller.startEdit(id),
+        startEdit: id => controller.startEdit(id),
         cancelEdit: () => controller.cancelEdit(),
         updateDraft: (patch) => { controller.updateDraft(patch) },
         save: () => controller.save(),
-        revoke: (id) => controller.revoke(id),
+        revoke: id => controller.revoke(id),
         dismissError: () => controller.dismissError(),
       }
       return {
@@ -73,7 +77,23 @@ function harness(service: {
         // is ui-renderer's); bindSnapshotSelector assembles the production
         // renderer's selector hook over it (agent-preset precedent).
         useApprovalRulesSection: bindSnapshotSelector(store),
+        // Root-scoped seat: the global standard hooks resolve the retained
+        // Session and panel gate; with an empty catalog fixture the readout
+        // renders session-less chrome (no retained row).
+        useSessions: (selector: (state: {
+          byId: Record<string, { retainedBy: { mainView?: number } }>
+          projectionsBySession: Record<string, unknown>
+          ids: string[]
+          phase: string
+        }) => unknown) =>
+          selector({ ids: [], byId: {}, phase: 'ready', projectionsBySession: {} }),
+        usePanelInfo: (selector: (info: { activePanelId: unknown }) => unknown) =>
+          selector({ activePanelId: null }),
         ...injected,
+        readout: {
+          readCatalog: () => Promise.resolve({ options: [], defaultOptions: [], defaultPreset: 'workspace-write' }),
+          refreshProjects: () => {},
+        } as ApprovalRulesSectionInjected['readout'],
         t,
       } as unknown as ApprovalRulesSectionPropsLike
     },
@@ -90,7 +110,7 @@ describe('approval-rules Settings section copy', () => {
     const b = harness(service)
     const load = b.controller.load()
     const { rerender } = render(<ApprovalRulesSection {...b.props()} />)
-    expect(screen.getByText('正在加载规则…')).toBeTruthy()
+    expect(screen.getByText('加载中…')).toBeTruthy()
     release()
     await load
     rerender(<ApprovalRulesSection {...b.props()} />)
@@ -300,7 +320,7 @@ describe('approval-rules Settings section copy', () => {
     await waitFor(() => { expect(screen.getByText('已保存，但无法刷新规则列表。')).toBeTruthy() })
     // Click the retry button within the refresh-error banner
     const retryButtons = screen.getAllByRole('button', { name: '重试' })
-    const refreshRetry = retryButtons.find(btn => btn.closest('[data-approval-rules-section]')?.querySelector('p')?.textContent?.includes('已保存'))
+    const refreshRetry = retryButtons.find(btn => btn.closest('p')?.textContent?.includes('已保存'))
     expect(refreshRetry).toBeTruthy()
     service.list.mockResolvedValueOnce({ ok: true as const, value: [rule('a', 'write_file'), rule('new', 'cmd')] } as never)
     fireEvent.click(refreshRetry!)

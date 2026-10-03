@@ -9,7 +9,7 @@ English | [中文](README.zh.md)
 
 ## Summary
 
-The Web GUI approval-rules surface shows the durable remembered approval rules and lets users add, edit, or revoke them, and it renders each rule-answered tool call as a transcript line. The Settings section owns the rule roster: it reads and writes the generated `approvalRuleSets` client service that the [approval-rules controller](../../api/approval-rules/README.md) mirrors onto the durable store the `interaction/user-approval` package opens. The rule-answered transcript row folds the `approval/decided` audit event — when it carries a remembered-rule reference — into one keyed `conversation.chat.node` line per answered call, naming the answering rule and its expiry when the rule is not permanent; an interactive answer (no rule) renders nothing.
+The Web GUI approval-rules surface shows the durable remembered approval rules and lets users add, edit, or revoke them, and it renders each rule-answered tool call as a transcript line. The Settings section owns the rule roster: it reads and writes the generated `approvalRuleSets` client service that the [approval-rules controller](../../api/approval-rules/README.md) mirrors onto the durable store the `interaction/user-approval` package opens, and beneath the roster it renders the effective-permission readout — the active retained Session's effective sandbox mode, workspace root, and permission value off one `session.projections` read. The rule-answered transcript row folds the `approval/decided` audit event — when it carries a remembered-rule reference — into one keyed `conversation.chat.node` line per answered call, naming the answering rule and its expiry when the rule is not permanent; an interactive answer (no rule) renders nothing.
 
 ## Table of Contents
 
@@ -25,7 +25,7 @@ The Web GUI approval-rules surface shows the durable remembered approval rules a
 <a id="use-this-package"></a>
 ## Use this package
 
-Mount this plugin alongside `ui-conversation`, `ui-chat`, and `ui-settings`; the `approval-rules` Settings section then appears in the Settings section list and the rule-answered rows appear in the chat transcript wherever the session tracks `approval/decided` events. The section lists the durable rules (name, tool, allow/deny effect, and expiry when one is set), offers Add rule and per-row Edit and Revoke, and opens an add/edit form. Loading, empty, failed-read, failed-write, and refresh-after-save states each render a keyed line; a landed write whose roster re-read fails keeps the rows under the refresh-error notice.
+Mount this plugin alongside `ui-conversation`, `ui-chat`, and `ui-settings`; the `approval-rules` Settings section then appears in the Settings section list and the rule-answered rows appear in the chat transcript wherever the session tracks `approval/decided` events. The section lists the durable rules (name, tool, allow/deny effect, and expiry when one is set), offers Add rule and per-row Edit and Revoke, and opens an add/edit form. Loading, empty, failed-read, failed-write, and refresh-after-save states each render a keyed line; a landed write whose roster re-read fails keeps the rows under the refresh-error notice. Beneath the roster the section shows the active retained Session's effective sandbox mode, workspace root, and permission value — session-less chrome names the deployment default for all three, and a failed read renders a shared error line with one Retry that re-issues the projection read.
 
 ### Failures
 
@@ -39,7 +39,7 @@ A failed write surfaces the keyed `rules.error` line naming the failed action (`
 <details>
 <summary>Implementation internals — click to expand</summary>
 
-The plugin's browser half registers three contributions that ride the plugin fiber (they disappear together on unload for HMR safety): the `approval-rule` Conversation Definition + its keyed `conversation.chat.node` renderer, the `approval-rules` Settings section, and the shared `approval.rules` locale dictionary merged into the UI slots `LocaleNamespaceMap`. The section is driven by `ApprovalRulesSectionController`, whose `createSnapshotStore`-backed store owns the roster read and the add/edit/revoke write paths; concurrent loads share one read, and a successful write re-reads the list. All reads and writes map one-to-one onto the `approvalRuleSets` client service's `list`/`save`/`revoke`. The transcript Definition matches only `approval/decided` records carrying a `rule`, keys one row per answered request by the request id, and the render collapses consecutive-same-rule rows — never the events. Every rendered string is a keyed `approval.rules` value; the section and transcript share the namespace.
+The plugin's browser half registers three contributions that ride the plugin fiber (they disappear together on unload for HMR safety): the `approval-rule` Conversation Definition + its keyed `conversation.chat.node` renderer, the `approval-rules` Settings section, and the shared `approval.rules` locale dictionary merged into the UI slots `LocaleNamespaceMap`. The section is driven by `ApprovalRulesSectionController`, whose `createSnapshotStore`-backed store owns the roster read and the add/edit/revoke write paths; concurrent loads share one read, and a successful write re-reads the list. All reads and writes map one-to-one onto the `approvalRuleSets` client service's `list`/`save`/`revoke`. The effective-permission readout derives its three fields from one `session.projections` read on the active retained Session (found through the panel gate plus the `retainedBy.mainView` scan); a failed read strips every field to a shared error line with one Retry, and session-less chrome renders the deployment default. The transcript Definition matches only `approval/decided` records carrying a `rule`, keys one row per answered request by the request id, and the render collapses consecutive-same-rule rows — never the events. Every rendered string is a keyed `approval.rules` value; the section and transcript share the namespace.
 
 </details>
 
@@ -71,7 +71,7 @@ None. The transcript row renders existing `approval/decided` events; it does not
 
 These limits define the current approval-rules surface. They are current package constraints, not an approval-rules comparison or a task backlog.
 
-- **Effective-permission readout lives elsewhere** — this package owns the rule roster (list, add/edit, revoke) and the answered-row transcript; the effective-permissions/sandbox readout belongs to another seat package.
+- **Readout scope is the retained Session** — the effective-permission readout labels the Session retained in the current view by the `retainedBy.mainView` scan; a global panel, or a view holding no Session, shows the session-less deployment default for all three fields rather than a named Session's values.
 
 <a id="dev-note"></a>
 ### Dev Note
