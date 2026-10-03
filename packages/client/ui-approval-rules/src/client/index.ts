@@ -46,7 +46,8 @@ export function apply(ctx: ClientContext): void {
   ctx.uiConversation.events.register(approvalRuleDefinition)
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'ui-approval-rules: dictionaries')
 
-  /* v8 ignore start -- framework-called slot-inject closures; registration verified by browser-plugin spec, closures exercised by e2e web snapshots */
+  /* v8 ignore start -- framework-called slot-inject closures; registration
+     verified by browser-plugin spec, closures exercised by e2e web snapshots */
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
     name: 'conversation.chat.node',
     key: 'approval-rule',

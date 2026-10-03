@@ -136,7 +136,7 @@ export function PermissionsReadout({
   useEffect(() => {
     let alive = true
     readCatalog().then(
-      value => { if (alive) setCatalog(value) },
+      (value) => { if (alive) setCatalog(value) },
       () => { if (alive) setCatalog(undefined) },
     )
     return () => { alive = false }
@@ -147,7 +147,8 @@ export function PermissionsReadout({
   const values = projection?.values
 
   const retry = (): void => {
-    /* v8 ignore next 1 -- unreachable: the Retry button is disabled while retrying, and retry() only renders in the named-Session branch. */
+    /* v8 ignore next 1 -- unreachable: the Retry button is disabled while
+       retrying, and retry() only renders in the named-Session branch. */
     if (sessionId === undefined || retrying) return
     setRetrying(true)
     void Promise.resolve(refreshProjects(sessionId)).then(() => { setRetrying(false) })
