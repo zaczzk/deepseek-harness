@@ -232,13 +232,13 @@ describe('the sandbox/mode session kit', () => {
     expect(SANDBOX_MODES).toEqual(['read-only', 'workspace-write', 'danger-full-access'])
   })
 
-  it('the sandboxMode projection folds to the last switch, or null without one', async () => {
-    const ctx = await mounted()
+  it('the sandboxMode projection folds to the last switch, or an empty override without one', async () => {
+    const ctx = await mounted({ workspaceRoot: '/fallback' })
     const session = Session.create(SessionId('sess-fold'))
-    expect(ctx.sessionProjections.stateOf(session, 'sandboxMode')).toBeNull()
+    expect(ctx.sessionProjections.stateOf(session, 'sandboxMode')).toEqual({ mode: null, workspaceRoot: '/fallback' })
     setSandboxMode(session, 'workspace-write')
     setSandboxMode(session, 'read-only')
-    expect(ctx.sessionProjections.stateOf(session, 'sandboxMode')).toBe('read-only')
+    expect(ctx.sessionProjections.stateOf(session, 'sandboxMode')).toEqual({ mode: 'read-only', workspaceRoot: '/fallback' })
   })
 
   it('setSandboxMode appends exactly one sandbox/mode event per switch', () => {
@@ -247,5 +247,32 @@ describe('the sandbox/mode session kit', () => {
     const modeEvents = session.snapshotEvents().filter(e => e.type === 'sandbox/mode')
     expect(modeEvents).toHaveLength(1)
     expect(modeEvents[0]?.data).toEqual({ mode: 'danger-full-access' })
+  })
+
+  it('publishes the effective mode and the deployment root through the sandboxMode wire view', async () => {
+    const ctx = await mounted({ mode: 'workspace-write', workspaceRoot: '/fallback' })
+    const session = Session.create(SessionId('sess-wire-default'))
+    // No override: the wire value is the deployment default mode with the header-less root.
+    expect(ctx.sessionProjections.snapshot(session).values.sandboxMode).toEqual({
+      mode: 'workspace-write', workspaceRoot: '/fallback',
+    })
+
+    setSandboxMode(session, 'read-only')
+    expect(ctx.sessionProjections.snapshot(session).values.sandboxMode).toEqual({
+      mode: 'read-only', workspaceRoot: '/fallback',
+    })
+  })
+
+  it('captures the session header cwd as the wire workspace root and folds the override onto it', async () => {
+    const ctx = await mounted({ mode: 'read-only', workspaceRoot: '/fallback' })
+    const wired = session('sess-wire-cwd', '/projects/wired')
+    expect(ctx.sessionProjections.snapshot(wired).values.sandboxMode).toEqual({
+      mode: 'read-only', workspaceRoot: '/projects/wired',
+    })
+
+    setSandboxMode(wired, 'danger-full-access')
+    expect(ctx.sessionProjections.snapshot(wired).values.sandboxMode).toEqual({
+      mode: 'danger-full-access', workspaceRoot: '/projects/wired',
+    })
   })
 })

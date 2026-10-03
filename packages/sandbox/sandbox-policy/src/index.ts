@@ -86,18 +86,61 @@ export interface SandboxPolicyRequest {
   mode?: SandboxMode
 }
 
-/** The sandbox-mode projection's state schema (state equals the public shape). */
-const sandboxModeStateSchema = zod.union([
-  zod.literal('read-only'),
-  zod.literal('workspace-write'),
-  zod.literal('danger-full-access'),
-]).nullable()
+/**
+ * The sandbox-mode projection's fold state: the session's override when one is
+ * logged, plus the workspace root the session was created with (its immutable
+ * cwd when present, else the deployment fallback). The cwd enters state at
+ * `init` from the header so every client cell and the wire view carry the
+ * effective root the enforcing consumers resolve without a session reference.
+ */
+interface SandboxModeState {
+  /** Last logged sandbox-mode override, or null before one. */
+  mode: SandboxMode | null
+  /** The absolute workspace-write root: `header.cwd` when present, else the configured fallback. */
+  workspaceRoot: string
+}
 
-type SandboxModeState = zod.infer<typeof sandboxModeStateSchema>
+/** The wire value `sandboxMode` publishes: effective mode and the workspace root. */
+export interface SandboxModeView {
+  /** The effective mode: the override when present, else the deployment default. */
+  mode: SandboxMode
+  /** The absolute workspace root this session operates under. */
+  workspaceRoot: string
+}
+
+const sandboxModeStateSchema = zod.object({
+  mode: zod.union([
+    zod.literal('read-only'),
+    zod.literal('workspace-write'),
+    zod.literal('danger-full-access'),
+  ]).nullable(),
+  workspaceRoot: zod.string(),
+}).strict() as zod.ZodType<SandboxModeState>
+
+const sandboxModeViewSchema = zod.object({
+  mode: zod.union([
+    zod.literal('read-only'),
+    zod.literal('workspace-write'),
+    zod.literal('danger-full-access'),
+  ]),
+  workspaceRoot: zod.string(),
+}).strict() as zod.ZodType<SandboxModeView>
+
 declare module '@deepseek-ai/dsh-session-projection/types' {
   interface SessionProjectionStateMap {
     /** Last logged sandbox-mode override, or null before one (deployment default applies at resolve time). */
     sandboxMode: SandboxModeState
+  }
+
+  interface SessionProjectionMap {
+    /**
+     * The session's effective sandbox policy: its last logged override when
+     * one is present, else the deployment default, together with the absolute
+     * workspace root (the immutable `SessionHeader.cwd`, else the configured
+     * fallback). Publish only effective values — no raw override token and no
+     * null mode ever reach a client.
+     */
+    sandboxMode: SandboxModeView
   }
 }
 
@@ -132,10 +175,17 @@ export class SandboxPolicyService extends Service {
 
     ctx.sessionProjections.register({
       key: 'sandboxMode',
-      stateVersion: 1,
+      stateVersion: 2,
       stateSchema: sandboxModeStateSchema,
-      init: () => null,
-      apply: (state, event) => (event.type === 'sandbox/mode' ? event.data.mode : state),
+      init: header => ({
+        mode: null,
+        workspaceRoot: resolveWorkspaceRoot(header.cwd ?? this.workspaceRoot),
+      }),
+      apply: (state, event) => (event.type === 'sandbox/mode' ? { ...state, mode: event.data.mode } : state),
+      wire: {
+        viewSchema: sandboxModeViewSchema,
+        view: state => ({ mode: state.mode ?? this.defaultMode, workspaceRoot: state.workspaceRoot }),
+      },
     })
 
     ctx.inject(['systemPrompt'], (scope: Context) => {
@@ -176,7 +226,7 @@ export class SandboxPolicyService extends Service {
    * @returns the last logged mode, or `undefined` without one.
    */
   overrideOf(session: Session): SandboxMode | undefined {
-    return this.ctx.sessionProjections.stateOf(session, 'sandboxMode') ?? undefined
+    return this.ctx.sessionProjections.stateOf(session, 'sandboxMode')?.mode ?? undefined
   }
 }
 
