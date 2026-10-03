@@ -80,10 +80,16 @@ export interface Config {
    * under the same per-directory trimmed-content dedup; empty disables the overlay.
    */
   localInstructionFileCandidates?: string[]
+  /**
+   * Ordered project-root decision-register file names parsed into ranked
+   * register guidance; every existing candidate with well-formed rows loads,
+   * and normally only `DECISIONS.md` (the shipped register file) is set.
+   */
+  registerFileCandidates?: string[]
 }
 ```
 
-Source: [`packages/context/agent-instructions/src/config.ts:18`](../packages/context/agent-instructions/src/config.ts)
+Source: [`packages/context/agent-instructions/src/config.ts:20`](../packages/context/agent-instructions/src/config.ts)
 
 <a id="deepseek-aidsh-agent-loop"></a>
 
